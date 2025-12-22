@@ -1,0 +1,7 @@
+{
+  "name": "Copy 44",
+  "description": "A comprehensive Dental Clinic Management System with patient tracking, appointments, teeth charting, and financial management.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

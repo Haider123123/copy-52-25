@@ -1,4 +1,7 @@
 export const en = {
+    updateAppFiles: "Update App Files",
+    updateAppDesc: "This will reload the latest version of the site files and clear old application cache. Useful if the app isn't updating automatically.",
+    reloadNow: "Reload & Update",
     aiAssistant: "AI Dental Assistant",
     getAiInsights: "Generate AI Insights",
     aiAnalyzing: "AI is analyzing patient data...",

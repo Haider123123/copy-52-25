@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { googleDriveService } from '../services/googleDrive';
 import { ClinicData, Language, Doctor, Secretary } from '../types';
@@ -150,6 +149,26 @@ export const SettingsView: React.FC<SettingsViewProps> = (props) => {
   })();
 
   const handleResetLocalData = () => { openConfirm( t.resetConfirmTitle, t.resetConfirmMsg, () => { localStorage.clear(); window.location.reload(); }, t.resetLocalData, t.cancel ); };
+  
+  const handleUpdateApp = async () => {
+    // Unregister service workers
+    if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (let registration of registrations) {
+            await registration.unregister();
+        }
+    }
+    // Clear caches
+    if ('caches' in window) {
+        const keys = await caches.keys();
+        for (const key of keys) {
+            await caches.delete(key);
+        }
+    }
+    // Hard reload
+    window.location.reload();
+  };
+
   const adjustScale = (delta: number) => setDeviceScale(Math.max(80, Math.min(150, deviceScale + delta)));
   const saveClinicName = () => { if (!tempClinicName.trim()) return; setData(prev => ({ ...prev, clinicName: tempClinicName })); setIsEditingClinic(false); };
   const saveClinicPhone = () => { setData(prev => ({ ...prev, settings: { ...prev.settings, clinicPhone: tempClinicPhone } })); setIsEditingPhone(false); };
@@ -178,7 +197,7 @@ export const SettingsView: React.FC<SettingsViewProps> = (props) => {
           <PreferencesSection t={t} deviceScale={deviceScale} setDeviceScale={setDeviceScale} adjustScale={adjustScale} currentTheme={currentTheme} setLocalTheme={setLocalTheme} currentLang={currentLang} setDeviceLang={setDeviceLang} activeThemeId={activeThemeId} setActiveThemeId={setActiveThemeId} isRTL={isRTL} />
 
           {isAdmin && (
-              <DataManagementSection t={t} isRTL={isRTL} setShowBackupModal={setShowBackupModal} setShowRestoreModal={setShowRestoreModal} handleResetLocalData={handleResetLocalData} deferredPrompt={deferredPrompt} handleInstallApp={handleInstallApp} />
+              <DataManagementSection t={t} isRTL={isRTL} setShowBackupModal={setShowBackupModal} setShowRestoreModal={setShowRestoreModal} handleResetLocalData={handleResetLocalData} handleUpdateApp={handleUpdateApp} deferredPrompt={deferredPrompt} handleInstallApp={handleInstallApp} />
           )}
         </div>
     </div>

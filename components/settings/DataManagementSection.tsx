@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Database, FileUp, Download, AlertOctagon, Trash, Layout } from 'lucide-react';
+import { Database, FileUp, Download, AlertOctagon, Trash, Layout, RefreshCw } from 'lucide-react';
 
 interface DataManagementSectionProps {
   t: any;
@@ -8,12 +7,13 @@ interface DataManagementSectionProps {
   setShowBackupModal: (val: boolean) => void;
   setShowRestoreModal: (val: boolean) => void;
   handleResetLocalData: () => void;
+  handleUpdateApp?: () => void;
   deferredPrompt: any;
   handleInstallApp: () => void;
 }
 
 export const DataManagementSection: React.FC<DataManagementSectionProps> = ({
-  t, isRTL, setShowBackupModal, setShowRestoreModal, handleResetLocalData, deferredPrompt, handleInstallApp
+  t, isRTL, setShowBackupModal, setShowRestoreModal, handleResetLocalData, handleUpdateApp, deferredPrompt, handleInstallApp
 }) => {
   return (
     <div className="space-y-8">
@@ -32,6 +32,24 @@ export const DataManagementSection: React.FC<DataManagementSectionProps> = ({
                     <span className="font-black text-blue-700 dark:text-blue-300 text-lg uppercase tracking-wider">{t.import}</span>
                 </button>
             </div>
+        </div>
+
+        {/* Update App Files Section */}
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-[3rem] shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-xl shadow-inner"><RefreshCw size={24} /></div>
+                <h3 className="font-black text-gray-900 dark:text-white text-xl uppercase tracking-tight">{t.updateAppFiles}</h3>
+            </div>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-8 leading-relaxed font-bold">
+                {t.updateAppDesc}
+            </p>
+            <button 
+                onClick={handleUpdateApp} 
+                className="w-full flex items-center justify-center gap-3 py-5 bg-indigo-600 text-white rounded-2xl font-black text-sm uppercase transition-all duration-300 hover:bg-indigo-700 shadow-xl shadow-indigo-500/20 active:scale-95"
+            >
+                <RefreshCw size={20} />
+                <span>{t.reloadNow}</span>
+            </button>
         </div>
 
         <div className="bg-red-50 dark:bg-red-950/20 p-8 rounded-[3rem] border-2 border-red-100 dark:border-red-900/30 shadow-sm space-y-6">

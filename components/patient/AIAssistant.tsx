@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Sparkles, X, BrainCircuit, Loader2, Info, Key, CheckCircle2, ArrowLeft, LogIn, MousePointer2, Zap } from 'lucide-react';
+import { Sparkles, X, BrainCircuit, Loader2, Info, Key, CheckCircle2, ArrowLeft, LogIn, MousePointer2, Zap, AlertTriangle, RefreshCw } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { Patient, ClinicData, Tooth } from '../../types';
 
@@ -16,6 +16,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
   const [insight, setInsight] = useState<string | null>(null);
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   const [showHowTo, setShowHowTo] = useState(false);
+  const [errorType, setErrorType] = useState<'none' | 'key_missing' | 'api_error'>('none');
 
   // Determine if RTL is needed based on language settings
   const isRTL = data.settings.language === 'ar' || data.settings.language === 'ku';
@@ -25,6 +26,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
     const checkKey = async () => {
       const selected = await window.aistudio.hasSelectedApiKey();
       setHasKey(selected);
+      if (!selected) setErrorType('key_missing');
     };
     checkKey();
   }, []);
@@ -32,7 +34,10 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
   const handleSelectKey = async () => {
     try {
       await window.aistudio.openSelectKey();
+      // Assume success due to race condition mitigation
       setHasKey(true);
+      setErrorType('none');
+      setInsight(null); // Clear any error insights
     } catch (error) {
       console.error("Key selection failed", error);
     }
@@ -40,6 +45,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
 
   const generateInsights = async () => {
     setLoading(true);
+    setErrorType('none');
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
@@ -74,11 +80,14 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
       setInsight(response.text);
     } catch (error: any) {
       console.error("AI Error:", error);
-      if (error.message?.includes("Requested entity was not found")) {
+      // Handle the specific multi-device missing key error
+      if (error.message?.includes("Requested entity was not found") || error.message?.includes("API key not valid")) {
         setHasKey(false);
-        setInsight("خطأ في تهيئة المفتاح. يرجى إعادة الربط.");
+        setErrorType('key_missing');
+        setInsight(isRTL ? "يجب إعادة تفعيل الذكاء الاصطناعي على هذا الجهاز للمتابعة." : "AI must be re-activated on this device to continue.");
       } else {
-        setInsight("فشل الاتصال بالذكاء الاصطناعي. يرجى المحاولة لاحقاً.");
+        setErrorType('api_error');
+        setInsight(isRTL ? "فشل الاتصال بالذكاء الاصطناعي. يرجى التأكد من اتصال الإنترنت." : "AI connection failed. Please check your internet.");
       }
     } finally {
       setLoading(false);
@@ -98,7 +107,7 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
               <BrainCircuit size={32} className="animate-pulse" />
             </div>
             <div>
-              <h3 className="font-black text-2xl tracking-tight">{showHowTo ? "دليل التفعيل" : t.aiAssistant}</h3>
+              <h3 className="font-black text-2xl tracking-tight">{showHowTo ? (isRTL ? "دليل التفعيل" : "Activation Guide") : t.aiAssistant}</h3>
               <p className="text-[10px] opacity-70 uppercase tracking-[0.2em] font-black">Intelligent Diagnosis Hub</p>
             </div>
           </div>
@@ -151,9 +160,13 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
               <div className="w-24 h-24 bg-amber-50 dark:bg-amber-900/20 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8 shadow-inner ring-4 ring-amber-50 dark:ring-amber-900/10">
                 <Key size={48} className="animate-bounce" />
               </div>
-              <h4 className="text-3xl font-black text-gray-800 dark:text-white mb-3">{isRTL ? 'تفعيل الذكاء الاصطناعي' : 'Activate AI'}</h4>
+              <h4 className="text-3xl font-black text-gray-800 dark:text-white mb-3">
+                {errorType === 'key_missing' ? (isRTL ? 'مطلوب إعادة تفعيل' : 'Re-activation Required') : (isRTL ? 'تفعيل الذكاء الاصطناعي' : 'Activate AI')}
+              </h4>
               <p className="text-gray-500 dark:text-gray-400 text-base max-w-sm mx-auto mb-10 leading-relaxed font-bold">
-                {isRTL ? 'استخدم قوة الذكاء الاصطناعي لتحليل حالات مرضى عيادتك وبخصوصية كاملة لبيانات المرضى' : 'Use the power of AI to analyze your patient cases with full data privacy.'}
+                {errorType === 'key_missing' 
+                  ? (isRTL ? 'تحتاج لإعادة ربط الحساب على هذا الجهاز لتتمكن من استخدام ميزات الذكاء الاصطناعي.' : 'You need to re-link your account on this device to use AI features.')
+                  : (isRTL ? 'استخدم قوة الذكاء الاصطناعي لتحليل حالات مرضى عيادتك وبخصوصية كاملة لبيانات المرضى' : 'Use the power of AI to analyze your patient cases with full data privacy.')}
               </p>
               
               <div className="flex flex-col gap-4 max-w-sm mx-auto">
@@ -161,7 +174,8 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
                   onClick={handleSelectKey}
                   className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl shadow-2xl shadow-indigo-500/40 hover:bg-indigo-700 transition transform active:scale-95 flex items-center justify-center gap-3"
                 >
-                  <Key size={24} /> {isRTL ? 'ربط المفتاح الآن' : 'Connect Key Now'}
+                  <RefreshCw size={24} className={loading ? 'animate-spin' : ''} /> 
+                  {isRTL ? 'إعادة تفعيل الذكاء الاصطناعي' : 'Re-activate AI Power'}
                 </button>
                 
                 <button 
@@ -187,6 +201,13 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
               >
                 <BrainCircuit size={24} /> {t.getAiInsights}
               </button>
+              
+              <button 
+                onClick={handleSelectKey}
+                className="mt-8 text-[11px] font-black uppercase text-gray-400 hover:text-indigo-500 transition-colors flex items-center gap-2 mx-auto"
+              >
+                <Key size={14} /> {isRTL ? 'إعادة التفعيل أو تغيير الحساب' : 'Re-activate or Change Account'}
+              </button>
             </div>
           ) : loading ? (
             <div className="flex flex-col items-center justify-center py-20">
@@ -209,19 +230,36 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
                 </div>
               </div>
 
-              {/* The Insights Box - Enhanced for Arabic BiDi support */}
-              <div className="max-w-none bg-gray-50 dark:bg-gray-700/50 p-8 rounded-[2.5rem] border-2 border-gray-100 dark:border-gray-700 shadow-inner">
-                <p 
-                    className="whitespace-pre-wrap leading-relaxed text-gray-800 dark:text-gray-100 text-lg font-bold text-start"
-                    dir="auto"
-                    style={{ 
-                        unicodeBidi: 'plaintext',
-                        textAlign: isRTL ? 'right' : 'left'
-                    }}
-                >
-                  {insight}
-                </p>
-              </div>
+              {/* Error Alert Box for key issues during generation */}
+              {errorType !== 'none' && (
+                <div className="bg-red-50 dark:bg-red-900/20 p-5 rounded-3xl border border-red-200 dark:border-red-800 flex items-center gap-4 animate-scale-up">
+                  <AlertTriangle className="text-red-600 shrink-0" size={24} />
+                  <div className="flex-1">
+                    <p className="text-sm text-red-700 dark:text-red-300 font-black leading-tight">
+                      {insight}
+                    </p>
+                    <button onClick={handleSelectKey} className="text-xs text-red-600 underline font-black mt-1">
+                      {isRTL ? 'اضغط هنا لإعادة التفعيل الآن' : 'Click here to re-activate now'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* The Insights Box */}
+              {errorType === 'none' && (
+                <div className="max-w-none bg-gray-50 dark:bg-gray-700/50 p-8 rounded-[2.5rem] border-2 border-gray-100 dark:border-gray-700 shadow-inner">
+                  <p 
+                      className="whitespace-pre-wrap leading-relaxed text-gray-800 dark:text-gray-100 text-lg font-bold text-start"
+                      dir="auto"
+                      style={{ 
+                          unicodeBidi: 'plaintext',
+                          textAlign: isRTL ? 'right' : 'left'
+                      }}
+                  >
+                    {insight}
+                  </p>
+                </div>
+              )}
               
               <div className="bg-blue-50 dark:bg-blue-900/20 p-5 rounded-3xl border-2 border-blue-100 dark:border-blue-800/30 flex items-start gap-4">
                 <Info size={24} className="text-blue-600 shrink-0 mt-1" />
@@ -232,16 +270,17 @@ export const AIAssistant: React.FC<AIAssistantProps> = ({ patient, data, t, onCl
 
               <div className="flex gap-3 pt-4">
                 <button 
-                  onClick={() => setInsight(null)}
+                  onClick={() => {setInsight(null); setErrorType('none');}}
                   className="flex-1 py-5 bg-gray-100 dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-black text-lg uppercase tracking-widest hover:bg-gray-200 dark:hover:bg-gray-700 rounded-2xl transition-all active:scale-95"
                 >
                   {isRTL ? 'إعادة التحليل' : 'Re-analyze'}
                 </button>
                 <button 
                   onClick={handleSelectKey}
-                  className="px-6 py-5 text-gray-400 hover:text-indigo-500 text-[11px] font-black uppercase tracking-tighter transition-colors"
+                  className="px-6 py-5 text-gray-400 hover:text-indigo-500 text-[11px] font-black uppercase tracking-tighter transition-colors flex items-center gap-2"
                 >
-                  {isRTL ? 'تغيير الحساب' : 'Change Account'}
+                  <RefreshCw size={14} />
+                  {isRTL ? 'إعادة التفعيل' : 'Re-activate'}
                 </button>
               </div>
             </div>

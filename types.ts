@@ -280,6 +280,7 @@ export interface ClinicData {
     googleDriveLinked?: boolean; 
     googleDriveRootId?: string; 
     thousandsShortcut?: boolean;
+    geminiApiKey?: string;
     rxTemplate?: {
         rxSymbol: TextStyleConfig;
         medications: TextStyleConfig;

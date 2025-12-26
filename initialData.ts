@@ -44,6 +44,7 @@ export const INITIAL_DATA: ClinicData = {
     adminPassword: '123456',
     googleDriveLinked: false,
     thousandsShortcut: false,
+    geminiApiKey: '',
     rxTemplate: {
         rxSymbol: { fontSize: 30, color: '#000000', isBold: true, isItalic: true },
         medications: { fontSize: 14, color: '#000000', isBold: true, isItalic: false },

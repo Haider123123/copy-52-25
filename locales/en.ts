@@ -1,4 +1,26 @@
 export const en = {
+    privacyPolicy: "Privacy Policy",
+    termsOfService: "Terms of Service",
+    legalContent: {
+        privacy: {
+            title: "Privacy Policy for Dentro Clinic Management System",
+            intro: "Your privacy and the security of your patient data are our top priorities. This policy explains how we handle clinical information.",
+            section1: "1. Data Collection: Dentro acts as a platform for your clinic. We do not own or access clinical records. All patient names, medical histories, and X-rays are stored securely for your exclusive use.",
+            section2: "2. Cloud Storage & Sync: When cloud sync is enabled, data is encrypted using industry-standard protocols before being transmitted. If you link Google Drive, images are stored directly in your private storage.",
+            section3: "3. Data Ownership: The clinic remains the sole owner of all data entered. We do not sell, share, or analyze clinical data for any third-party purposes.",
+            section4: "4. User Security: It is the clinic's responsibility to manage access credentials. We recommend using strong passwords and the built-in PIN protection for sensitive statistics.",
+            section5: "5. Compliance: Our system is designed to help clinics maintain professional record-keeping standards consistent with digital healthcare regulations."
+        },
+        terms: {
+            title: "Terms of Service",
+            intro: "By using Dentro, you agree to the following professional standards of service.",
+            section1: "1. Professional Responsibility: Dentro is a management tool. Clinical decisions, prescriptions, and surgical outcomes remain the full legal responsibility of the treating dentist.",
+            section2: "2. Subscription Terms: Services are provided on a subscription basis. Subscriptions are managed via our official channels. Failure to renew may result in restricted access to cloud services.",
+            section3: "3. Accuracy of Data: The clinic is responsible for the accuracy of patient records and financial entries. Our system calculates statistics based on the data provided.",
+            section4: "4. Service Availability: While we aim for 100% uptime, cloud services may be subject to maintenance. Local data remains accessible offline even without internet connection.",
+            section5: "5. Modification of Terms: We reserve the right to update these terms to improve security and add features that benefit the dental community."
+        }
+    },
     updateAppFiles: "Update App Files",
     updateAppDesc: "This will reload the latest version of the site files and clear old application cache. Useful if the app isn't updating automatically.",
     reloadNow: "Reload & Update",

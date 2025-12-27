@@ -1,8 +1,7 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Activity, Globe, ArrowRight, Instagram, CheckCircle2, ChevronDown, User, Grid, Calendar, DollarSign, FlaskConical, FileText, BarChart3, Cloud, LayoutDashboard, StickyNote, ShoppingBag, PlusCircle, Sparkles, MonitorSmartphone, Palette, UsersRound, X, Database, Paintbrush, ShieldCheck, UserCog, Contact, Image as ImageIcon } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Activity, Globe, ArrowRight, Instagram, CheckCircle2, ChevronDown, User, Grid, Calendar, DollarSign, FlaskConical, FileText, BarChart3, Cloud, LayoutDashboard, StickyNote, ShoppingBag, PlusCircle, Sparkles, MonitorSmartphone, Palette, UsersRound, X, Database, Paintbrush, ShieldCheck, UserCog, Contact, Image as ImageIcon, Shield } from 'lucide-react';
 import { PRICING_PLANS } from '../constants';
-// Fixed: LABELS is exported from ../locales, not ../types
 import { LABELS } from '../locales';
 import { Logo } from './Logo';
 
@@ -13,9 +12,45 @@ interface LandingPageProps {
   isRTL: boolean;
 }
 
+const LegalModal = ({ isOpen, onClose, title, content, isRTL }: any) => {
+    if (!isOpen) return null;
+    return createPortal(
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl max-w-2xl w-full p-8 relative border border-gray-100 dark:border-gray-700 animate-scale-up overflow-hidden flex flex-col max-h-[85vh]">
+                <div className="flex justify-between items-center mb-6 shrink-0">
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white flex items-center gap-3">
+                        <Shield className="text-primary-600" />
+                        {title}
+                    </h3>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition"><X size={24} /></button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-6 text-gray-600 dark:text-gray-300 pr-2 leading-relaxed" dir={isRTL ? 'rtl' : 'ltr'}>
+                    <p className="font-bold text-lg">{content.intro}</p>
+                    <div className="space-y-4">
+                        <p>{content.section1}</p>
+                        <p>{content.section2}</p>
+                        <p>{content.section3}</p>
+                        <p>{content.section4}</p>
+                        <p>{content.section5}</p>
+                    </div>
+                </div>
+
+                <div className="pt-6 mt-4 border-t border-gray-100 dark:border-gray-700 shrink-0">
+                    <button onClick={onClose} className="w-full py-4 bg-primary-600 text-white font-black rounded-2xl shadow-lg hover:bg-primary-700 transition">
+                        {isRTL ? "فهمت ذلك" : "I Understand"}
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ setAppState, landingLang, setLandingLang, isRTL }) => {
   const [isLangMenuOpen, setIsLangMenuOpen] = useState(false);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
+  const [activeLegalModal, setActiveLegalModal] = useState<'privacy' | 'terms' | null>(null);
   const langMenuRef = useRef<HTMLDivElement>(null);
   const t = LABELS[landingLang];
 
@@ -102,6 +137,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setAppState, landingLa
             animation: border-rotate 4s ease infinite;
           }
         `}</style>
+
+        {/* Legal Modals */}
+        <LegalModal 
+            isOpen={activeLegalModal === 'privacy'} 
+            onClose={() => setActiveLegalModal(null)} 
+            title={t.privacyPolicy}
+            content={t.legalContent.privacy}
+            isRTL={isRTL}
+        />
+        <LegalModal 
+            isOpen={activeLegalModal === 'terms'} 
+            onClose={() => setActiveLegalModal(null)} 
+            title={t.termsOfService}
+            content={t.legalContent.terms}
+            isRTL={isRTL}
+        />
 
         {/* Subscription Modal */}
         {showSubscribeModal && (
@@ -347,8 +398,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setAppState, landingLa
             </div>
         </section>
 
-        <footer className="bg-gray-50 dark:bg-gray-900 py-8 border-t border-gray-200 dark:border-gray-800 text-center">
-            <p className="text-gray-500 dark:text-gray-400 text-sm">{t.copyright}</p>
+        <footer className="bg-gray-50 dark:bg-gray-900 py-12 border-t border-gray-200 dark:border-gray-800">
+            <div className="container mx-auto px-6 text-center">
+                <div className="flex flex-col md:flex-row justify-center items-center gap-6 mb-8 text-sm font-bold text-gray-500 dark:text-gray-400">
+                    <button 
+                        onClick={() => setActiveLegalModal('privacy')}
+                        className="hover:text-primary-600 transition flex items-center gap-1.5"
+                    >
+                        <Shield size={16} />
+                        {t.privacyPolicy}
+                    </button>
+                    <span className="hidden md:inline opacity-20">|</span>
+                    <button 
+                        onClick={() => setActiveLegalModal('terms')}
+                        className="hover:text-primary-600 transition flex items-center gap-1.5"
+                    >
+                        <FileText size={16} />
+                        {t.termsOfService}
+                    </button>
+                </div>
+                <p className="text-gray-400 dark:text-gray-500 text-xs tracking-widest uppercase font-bold">{t.copyright}</p>
+            </div>
         </footer>
       </div>
   );

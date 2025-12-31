@@ -1,4 +1,3 @@
-
 export const en = {
     privacyPolicy: "Privacy Policy",
     termsOfService: "Terms of Service",
@@ -544,5 +543,24 @@ export const en = {
     thousandsShortcut: "Thousands Shortcut (000)",
     thousandsShortcutDesc: "When enabled, three zeros (000) will be automatically added to any number you type in charges or payments. e.g. typing 250 becomes 250,000.",
     calendarSettings: "Calendar Settings",
-    columnPadding: "Column Width"
+    columnPadding: "Column Width",
+    outstandingBalances: "Outstanding Balances",
+    totalOutstanding: "Total Debt",
+    debtorsList: "Debtors List",
+    owes: "Owes",
+    noDebtors: "No outstanding balances found.",
+    daily: "Daily",
+    weekly: "Weekly",
+    incomeToday: "Today's Income",
+    incomeWeekly: "Weekly Income",
+    incomeThirtyDays: "Income (30 Days)",
+    expensesToday: "Today's Expenses",
+    expensesWeekly: "Weekly Expenses",
+    expensesThirtyDays: "Expenses (30 Days)",
+    profitToday: "Today's Profit",
+    profitWeekly: "Weekly Profit",
+    profitThirtyDays: "Profit (30 Days)",
+    newPatientsToday: "Today's Patients",
+    newPatientsWeekly: "Weekly Patients",
+    newPatientsThirtyDays: "Patients (30 Days)"
 };

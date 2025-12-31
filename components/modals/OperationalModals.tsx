@@ -23,7 +23,7 @@ export const InventoryModal = ({ show, onClose, t, selectedItem, handleSaveItem,
                     const fd = new FormData(e.currentTarget);
                     handleSaveItem({ name: fd.get('name'), quantity: quantity, minQuantity: parseInt(fd.get('minQuantity') as string), price: fd.get('price') ? parseFloat(fd.get('price') as string) : undefined, expiryDate: fd.get('expiryDate'), color: fd.get('color') });
                 }} className="space-y-4">
-                    <div> <label className="block text-xs font-bold text-gray-500 mb-1">{t.itemName}</label> <input name="name" defaultValue={selectedItem?.name} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-primary-500" /> </div>
+                    <div> <label className="block text-xs font-bold text-gray-500 mb-1">{t.itemName}</label> <input name="name" defaultValue={selectedItem?.name} required autoComplete="off" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-primary-500" /> </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 mb-1">{t.currentQty}</label>
                         <div className="flex items-center gap-3">
@@ -63,7 +63,7 @@ export const SupplyModal = ({ show, onClose, t, selectedSupply, handleSaveSupply
                     const fd = new FormData(e.currentTarget);
                     handleSaveSupply(fd.get('name') as string, parseInt(fd.get('quantity') as string), parseFloat(fd.get('price') as string));
                 }} className="space-y-4">
-                    <div> <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.itemName}</label> <input name="name" defaultValue={selectedSupply?.name} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
+                    <div> <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.itemName}</label> <input name="name" defaultValue={selectedSupply?.name} required autoComplete="off" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div> <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.quantity}</label> <input name="quantity" type="number" defaultValue={selectedSupply?.quantity || 1} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
                         <div> <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.price}</label> <input name="price" type="number" defaultValue={selectedSupply?.price || 0} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
@@ -88,7 +88,7 @@ export const ExpenseModal = ({ show, onClose, t, selectedExpense, handleSaveExpe
                       const fd = new FormData(e.currentTarget);
                       handleSaveExpense( fd.get('name') as string, parseInt(fd.get('quantity') as string), parseFloat(fd.get('price') as string), fd.get('date') as string );
                   }} className="space-y-4">
-                      <input name="name" defaultValue={selectedExpense?.name} placeholder={t.itemName} required className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" />
+                      <input name="name" defaultValue={selectedExpense?.name} placeholder={t.itemName} required autoComplete="off" className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" />
                       <div className="grid grid-cols-2 gap-4">
                           <input name="quantity" type="number" defaultValue={selectedExpense?.quantity || 1} placeholder={t.quantity} required className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" />
                           <input name="price" type="number" defaultValue={selectedExpense?.price} placeholder={t.price} required className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" />
@@ -222,6 +222,7 @@ export const LabOrderModal = ({ show, onClose, t, data, selectedLabOrder, handle
                                 value={patientSearch} 
                                 onChange={(e) => { setPatientSearch(e.target.value); setShowPatientList(true); if(selectedPatient && e.target.value !== selectedPatient.name) setSelectedPatient(null); }} 
                                 onFocus={() => setShowPatientList(true)} 
+                                autoComplete="off"
                                 className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-4 rounded-2xl bg-white dark:bg-gray-800 border-2 border-transparent focus:border-primary-500 dark:text-white outline-none font-bold text-lg shadow-sm`} 
                                 placeholder={t.searchPatients} 
                                 required 
@@ -280,7 +281,7 @@ export const LabOrderModal = ({ show, onClose, t, data, selectedLabOrder, handle
                             </div>
                             <div className="md:col-span-2"> 
                                 <label className="block text-xs font-black text-gray-400 uppercase mb-2 ms-1">{t.toothNumbers}</label> 
-                                <input name="toothNumbers" defaultValue={selectedLabOrder?.toothNumbers} className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none font-bold text-lg shadow-sm" placeholder="e.g. 11, 21, 22" /> 
+                                <input name="toothNumbers" defaultValue={selectedLabOrder?.toothNumbers} autoComplete="off" className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none font-bold text-lg shadow-sm" placeholder="e.g. 11, 21, 22" /> 
                             </div>
                         </div>
 
@@ -310,7 +311,7 @@ export const LabOrderModal = ({ show, onClose, t, data, selectedLabOrder, handle
                             </div>
                             <div className="md:col-start-1 md:col-end-3"> 
                                 <label className="block text-xs font-black text-gray-400 uppercase mb-2 ms-1">{t.notes}</label> 
-                                <textarea name="notes" defaultValue={selectedLabOrder?.notes} className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none min-h-[100px] font-medium shadow-sm" placeholder={t.optionalNotesPlaceholder} /> 
+                                <textarea name="notes" defaultValue={selectedLabOrder?.notes} autoComplete="off" className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none min-h-[100px] font-medium shadow-sm" placeholder={t.optionalNotesPlaceholder} /> 
                             </div>
                         </div>
                     </div>

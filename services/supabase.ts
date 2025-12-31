@@ -1,4 +1,3 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { ClinicData } from '../types';
 import { INITIAL_DATA } from '../initialData';
@@ -24,6 +23,30 @@ export const supabaseService = {
   getUser: async () => {
     const { data: { user } } = await supabase.auth.getUser();
     return user;
+  },
+
+  checkAccountStatus: async (): Promise<{ exists: boolean; error: boolean }> => {
+    try {
+      const user = await supabaseService.getUser();
+      if (!user) return { exists: false, error: false };
+
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        // PGRST116 means no rows found (Account Deleted)
+        if (error.code === 'PGRST116') return { exists: false, error: false };
+        // Any other error (network, server) is treated as a connection issue
+        return { exists: true, error: true };
+      }
+      
+      return { exists: !!data, error: false };
+    } catch (e) {
+      return { exists: true, error: true };
+    }
   },
 
   loadData: async (): Promise<ClinicData | null> => {

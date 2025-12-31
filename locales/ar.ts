@@ -1,4 +1,3 @@
-
 export const ar = {
     privacyPolicy: "سياسة الخصوصية",
     termsOfService: "شروط الخدمة",
@@ -15,11 +14,11 @@ export const ar = {
         terms: {
             title: "شروط الخدمة",
             intro: "باستخدامك لنظام Dentro، فإنك توافق على المعايير المهنية التالية للخدمة.",
-            section1: "1. المسؤولية المهنية: Dentro هو أداة إدارية. تظل القرارات السريرية والوصفات الطبية ونتائج العمليات الجراحية هي المسؤولية القانونية الكاملة لطبيب الأسنان المعالج.",
-            section2: "2. شروط الاشتراك: يتم تقديم الخدمات على أساس الاشتراك. تتم إدارة الاشتراكات عبر قنواتنا الرسمية. قد يؤدي عدم التجديد إلى تقييد الوصول إلى الخدمات السحابية.",
-            section3: "3. دقة البيانات: العيادة مسؤولة عن دقة سجلات المرضى والمدخلات المالية. يقوم نظامنا بحساب الإحصائيات بناءً على البيانات المقدمة.",
-            section4: "4. توفر الخدمة: بينما نهدف إلى توفر الخدمة بنسبة 100%، قد تخضع الخدمات السحابية للصيانة. تظل البيانات المحلية متاحة دون اتصال حتى في حال انقطاع الإنترنت.",
-            section5: "5. تعديل الشروط: نحتفظ بالحق في تحديث هذه الشروط لتحسين الأمن وإضافة ميزات تفيد مجتمع طب الأسنان."
+            section1: "1. Professional Responsibility: Dentro is a management tool. Clinical decisions, prescriptions, and surgical outcomes remain the full legal responsibility of the treating dentist.",
+            section2: "2. Subscription Terms: Services are provided on a subscription basis. Subscriptions are managed via our official channels. Failure to renew may result in restricted access to cloud services.",
+            section3: "3. Accuracy of Data: The clinic is responsible for the accuracy of patient records and financial entries. Our system calculates statistics based on the data provided.",
+            section4: "4. Service Availability: While we aim for 100% uptime, cloud services may be subject to maintenance. Local data remains accessible offline even without internet connection.",
+            section5: "5. Modification of Terms: We reserve the right to update these terms to improve security and add features that benefit the dental community."
         }
     },
     updateAppFiles: "تحديث ملفات التطبيق",
@@ -456,7 +455,7 @@ export const ar = {
     sortBy: "ترتيب حسب",
     sortName: "الاسم (أ-ي)",
     sortNewest: "الأحدث أولاً",
-    sortOldest: "الأقدم أولاً",
+    sortOldest: "القديم أولاً",
     protectWithPin: "حماية برمز PIN",
     managePin: "إدارة الرمز",
     enterPin: "أدخل الرمز (6 أرقام)",
@@ -501,7 +500,7 @@ export const ar = {
     featureDocsDesc: "طباعة الوصفات الطبية، الوصولات، ونماذج الموافقة بتصاميم عيادتك.",
     featureDashboard: "لوحة التحكم والإحصائيات",
     featureDashboardDesc: "إحصائيات فورية عن الأرباح، نمو المرضى، وأداء العيادة.",
-    featureCloud: "المزامنة السحابية",
+    featureCloud: "Cloud Sync",
     featureCloudDesc: "وصول آمن لبيانات عيادتك من أي جهاز وفي أي وقت.",
     featureMemos: "المذكرات والملاحظات",
     featureMemosDesc: "تتبع المهام، الملاحظات الشخصية، وقوائم العمل داخل التطبيق.",
@@ -544,5 +543,24 @@ export const ar = {
     thousandsShortcut: "اختصار الآلاف (000)",
     thousandsShortcutDesc: "عند تفعيل هذا الخيار، سيتم إضافة ثلاثة أصفار (000) تلقائياً لأي رقم تكتبه في التكاليف أو الدفعات. مثال: كتابة 250 ستتحول إلى 250,000.",
     calendarSettings: "إعدادات التقويم",
-    columnPadding: "عرض الأعمدة"
+    columnPadding: "عرض الأعمدة",
+    outstandingBalances: "المبالغ المتبقية (الديون)",
+    totalOutstanding: "مجموع الديون",
+    debtorsList: "قائمة الديون",
+    owes: "يطلبه المبلغ",
+    noDebtors: "لا توجد مبالغ متبقية حالياً.",
+    daily: "يومي",
+    weekly: "أسبوعي",
+    incomeToday: "دخل اليوم",
+    incomeWeekly: "الدخل الأسبوعي",
+    incomeThirtyDays: "دخل (30 يوم)",
+    expensesToday: "مصاريف اليوم",
+    expensesWeekly: "المصاريف الأسبوعية",
+    expensesThirtyDays: "مصاريف (30 يوم)",
+    profitToday: "أرباح اليوم",
+    profitWeekly: "الأرباح الأسبوعية",
+    profitThirtyDays: "أرباح (30 يوم)",
+    newPatientsToday: "مرضى اليوم",
+    newPatientsWeekly: "مرضى الأسبوع",
+    newPatientsThirtyDays: "مرضى (30 يوم)"
 };

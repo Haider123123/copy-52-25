@@ -251,11 +251,15 @@ export interface MonthViewSettings {
   fontSize: number;
   columnPadding: number;
   textColor: string;
+  cardBgColor: string;
+  columnColors: string[];
 }
 
 export interface WeekViewSettings {
   fontSize: number;
   textColor: string;
+  cardBgColor: string;
+  dayColors: string[];
 }
 
 export interface ClinicData {

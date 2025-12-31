@@ -45,7 +45,7 @@ export const PatientModal = ({ show, onClose, t, isRTL, currentLang, data, handl
             }} className="space-y-4">
               <div>
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.name}</label>
-                  <input name="name" defaultValue={isEdit ? activePatient.name : guestToConvert?.patientName} required className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none" placeholder={t.fullNamePlaceholder} />
+                  <input name="name" defaultValue={isEdit ? activePatient.name : guestToConvert?.patientName} required autoComplete="off" className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none" placeholder={t.fullNamePlaceholder} />
               </div>
               <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -66,7 +66,7 @@ export const PatientModal = ({ show, onClose, t, isRTL, currentLang, data, handl
                       <select name="phoneCode" defaultValue={isEdit ? activePatient.phoneCode : data.settings.defaultCountryCode} className="w-24 px-2 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none text-sm">
                           {COUNTRY_CODES.map(c => ( <option key={c.code} value={c.code}>{c.flag} {c.code}</option> ))}
                       </select>
-                      <input name="phone" type="tel" defaultValue={isEdit ? activePatient.phone : ''} className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none" placeholder="750 000 0000" />
+                      <input name="phone" type="tel" defaultValue={isEdit ? activePatient.phone : ''} autoComplete="off" className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none" placeholder="750 000 0000" />
                   </div>
               </div>
               <div>
@@ -88,7 +88,7 @@ export const PatientModal = ({ show, onClose, t, isRTL, currentLang, data, handl
 
               <div>
                   <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.address}</label>
-                  <input name="address" defaultValue={isEdit ? activePatient.address : ''} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none" placeholder={t.cityStreetPlaceholder} />
+                  <input name="address" defaultValue={isEdit ? activePatient.address : ''} autoComplete="off" className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none" placeholder={t.cityStreetPlaceholder} />
               </div>
               <button type="submit" className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-4 rounded-xl mt-4 shadow-lg shadow-primary-500/30 transition transform hover:-translate-y-0.5">{t.save}</button>
             </form>
@@ -211,10 +211,10 @@ export const AppointmentModal = ({ show, onClose, t, selectedAppointment, appoin
                                           value={patientSearch} 
                                           onChange={(e) => { setPatientSearch(e.target.value); setShowPatientList(true); }} 
                                           onFocus={() => setShowPatientList(true)} 
+                                          autoComplete="off"
                                           className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 dark:text-white outline-none focus:border-primary-500 transition-all font-bold`} 
                                           placeholder={t.searchPatients} 
                                           required 
-                                          autoComplete="off" 
                                       />
                                       {showPatientList && patientSearch && (
                                          <div className="absolute top-full left-0 right-0 bg-white dark:bg-gray-800 border-2 border-gray-100 dark:border-gray-700 z-[110] max-h-48 overflow-y-auto rounded-xl shadow-2xl mt-2 animate-fade-in custom-scrollbar">
@@ -248,7 +248,7 @@ export const AppointmentModal = ({ show, onClose, t, selectedAppointment, appoin
                       ) : (
                           <div>
                               <label className="block text-xs font-black text-gray-400 uppercase mb-1 tracking-widest">{t.guestNamePlaceholder}</label>
-                              <input name="guestName" defaultValue={selectedAppointment?.patientName} className="w-full p-3.5 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 dark:text-white outline-none focus:border-primary-500 font-bold" required placeholder={t.guestNamePlaceholder} />
+                              <input name="guestName" defaultValue={selectedAppointment?.patientName} autoComplete="off" className="w-full p-3.5 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700 dark:text-white outline-none focus:border-primary-500 font-bold" required placeholder={t.guestNamePlaceholder} />
                           </div>
                       )}
 
@@ -287,12 +287,12 @@ export const AppointmentModal = ({ show, onClose, t, selectedAppointment, appoin
 
                       <div>
                           <label className="block text-xs font-black text-gray-400 uppercase mb-1 tracking-widest">{t.notes}</label>
-                          <textarea name="notes" defaultValue={selectedAppointment?.notes} className="w-full p-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-700 dark:text-white outline-none font-medium text-sm shadow-inner" placeholder={t.optionalNotesPlaceholder} rows={2} />
+                          <textarea name="notes" defaultValue={selectedAppointment?.notes} autoComplete="off" className="w-full p-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-700 dark:text-white outline-none font-medium text-sm shadow-inner" placeholder={t.optionalNotesPlaceholder} rows={2} />
                       </div>
 
                       <div className="flex gap-3 pt-4">
                           <button type="button" onClick={onClose} className="flex-1 py-4 text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest text-xs hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-all">{t.cancel}</button>
-                          <button type="submit" className="flex-2 py-4 bg-primary-600 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-xl shadow-primary-500/30 hover:bg-primary-700 transition-all transform active:scale-95">{t.save}</button>
+                          <button type="submit" className="flex-1 py-4 bg-primary-600 text-white font-black uppercase tracking-widest text-xs rounded-xl shadow-xl shadow-primary-500/30 hover:bg-primary-700 transition-all transform active:scale-95">{t.save}</button>
                       </div>
                   </form>
               </div>

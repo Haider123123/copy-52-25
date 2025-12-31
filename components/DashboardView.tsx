@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Activity, UserPlus, CreditCard, Lock, Unlock, ShieldCheck, FlaskConical, X, Filter, Stethoscope, Users, Calendar } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Activity, UserPlus, CreditCard, Lock, Unlock, ShieldCheck, FlaskConical, X, Filter, Stethoscope, Users, Calendar, AlertCircle, ChevronRight, Search } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 import { format, addMonths, isSameMonth, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
-import { ClinicData } from '../types';
+import { ClinicData, Patient } from '../types';
 
 interface DashboardViewProps {
   t: any;
@@ -11,18 +11,93 @@ interface DashboardViewProps {
   allAppointments: any[];
   setData: React.Dispatch<React.SetStateAction<ClinicData>>;
   activeDoctorId?: string | null;
+  setSelectedPatientId: (id: string | null) => void;
+  setCurrentView: (view: 'patients' | 'dashboard' | 'memos' | 'calendar' | 'settings' | 'purchases' | 'expenses' | 'labOrders' | 'inventory') => void;
+  setPatientTab: (tab: 'overview' | 'chart' | 'visits' | 'finance' | 'prescriptions' | 'documents') => void;
 }
 
 type TimeRange = 'today' | 'week' | 'month' | '30days';
 
-export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppointments, setData, activeDoctorId }) => {
+const DebtorsModal = ({ isOpen, onClose, t, debtors, onSelectPatient, currency, isRTL }: any) => {
+    const [search, setSearch] = useState('');
+    if (!isOpen) return null;
+
+    const filtered = debtors.filter((d: any) => d.name.toLowerCase().includes(search.toLowerCase()));
+    const fontClass = isRTL ? 'font-cairo' : 'font-sans';
+
+    return createPortal(
+        <div className={`fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-fade-in ${fontClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
+            <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-scale-up border border-gray-100 dark:border-gray-700">
+                <div className="p-6 md:p-8 border-b border-gray-50 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-xl">
+                            <AlertCircle size={24} />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{t.debtorsList}</h3>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors">
+                        <X size={24} className="text-gray-400" />
+                    </button>
+                </div>
+
+                <div className="p-6 border-b border-gray-50 dark:border-gray-700">
+                    <div className="relative">
+                        <Search className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-4' : 'left-4'} text-gray-400`} size={18} />
+                        <input 
+                            type="text"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className={`w-full ${isRTL ? 'pr-12' : 'pl-12'} p-4 rounded-2xl bg-gray-100 dark:bg-gray-700 dark:text-white outline-none font-bold text-sm`}
+                            placeholder={t.searchPatients}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-3">
+                    {filtered.length === 0 ? (
+                        <div className="text-center py-10 opacity-30">
+                            <Users size={48} className="mx-auto mb-4" />
+                            <p className="font-bold">{t.noDebtors}</p>
+                        </div>
+                    ) : (
+                        filtered.map((d: any) => (
+                            <button 
+                                key={d.id}
+                                onClick={() => onSelectPatient(d.id)}
+                                className="w-full flex items-center justify-between p-5 bg-white dark:bg-gray-700 rounded-2xl border border-gray-100 dark:border-gray-600 hover:border-primary-300 hover:shadow-md transition-all group"
+                            >
+                                <div className="text-start">
+                                    <div className="font-black text-gray-800 dark:text-white text-lg group-hover:text-primary-600 transition-colors">{d.name}</div>
+                                    <div className="text-xs text-gray-400 font-bold uppercase tracking-widest">{d.doctorName}</div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <div className="text-end">
+                                        <div className="text-red-600 font-black text-xl">{currency} {d.debt.toLocaleString()}</div>
+                                        <div className="text-[10px] text-gray-400 font-bold uppercase">{t.remaining}</div>
+                                    </div>
+                                    <ChevronRight size={18} className={`text-gray-300 group-hover:text-primary-400 transition-colors ${isRTL ? 'rotate-180' : ''}`} />
+                                </div>
+                            </button>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>,
+        document.body
+    );
+};
+
+export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppointments, setData, activeDoctorId, setSelectedPatientId, setCurrentView, setPatientTab }) => {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>('month');
+  const [showDebtorsModal, setShowDebtorsModal] = useState(false);
   
   const [showSetPinModal, setShowSetPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
   const [oldPinInput, setOldPinInput] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  const isRTL = data.settings.language === 'ar' || data.settings.language === 'ku';
 
   // Determine current active PIN
   const getCurrentPin = () => {
@@ -35,7 +110,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
 
   const currentPinValue = getCurrentPin();
 
-  // التحقق من حالة القفل فقط عند فتح الشاشة أو مسح الرمز
   useEffect(() => {
      if (!currentPinValue) {
          setIsUnlocked(true);
@@ -125,8 +199,30 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
         }, 0);
         const appointments = allAppointments.filter(a => docPatientIds.includes(a.patientId) && isInRange(a.date, currentStart, currentEnd)).length;
 
-        return { id: doc.id, name: doc.name, totalPatients: newPatientsCount, income, appointments };
+        // Calculate doctor-specific debt
+        const docDebt = docPatients.reduce((total, p) => {
+            const paid = p.payments.filter(pay => pay.type === 'payment').reduce((s, pay) => s + pay.amount, 0);
+            const cost = p.payments.filter(pay => pay.type === 'charge').reduce((s, pay) => s + pay.amount, 0);
+            return total + Math.max(0, cost - paid);
+        }, 0);
+
+        return { id: doc.id, name: doc.name, totalPatients: newPatientsCount, income, appointments, debt: docDebt };
     });
+
+    const debtors = basePatients.map(p => {
+        const totalPaid = p.payments.filter(pay => pay.type === 'payment').reduce((s, pay) => s + pay.amount, 0);
+        const totalCost = p.payments.filter(pay => pay.type === 'charge').reduce((s, pay) => s + pay.amount, 0);
+        const debt = totalCost - totalPaid;
+        return { 
+            id: p.id, 
+            name: p.name, 
+            debt, 
+            doctorId: p.doctorId,
+            doctorName: data.doctors.find(d => d.id === p.doctorId)?.name || 'Unknown'
+        };
+    }).filter(d => d.debt > 0).sort((a,b) => b.debt - a.debt);
+
+    const totalOutstanding = debtors.reduce((sum, d) => sum + d.debt, 0);
 
     let chartData: any[] = [];
     if (range === 'today' || range === 'week') {
@@ -191,7 +287,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
         patients: { current: patientsCurrent, prev: patientsPrev },
         comparisonLabel, chartData, apptStatusData, genderData, recentActivity,
         labStats: { active: totalLabOrders, ready: readyLabOrders, cost: totalLabCost },
-        doctorStats
+        doctorStats,
+        outstanding: { total: totalOutstanding, list: debtors }
     };
   };
 
@@ -209,7 +306,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
   };
 
   const updateDashboardPin = (newPin: string) => {
-      // نضمن تحديث طابع الوقت فوراً لضمان فوز التغيير في عملية المزامنة
       const timestamp = Date.now();
       if (activeDoctorId) {
           setData(prev => ({
@@ -259,15 +355,39 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
       }
       updateDashboardPin('');
       setShowSetPinModal(false);
-      setIsUnlocked(true); // نضمن البقاء في حالة الفتح
+      setIsUnlocked(true);
       setOldPinInput('');
+  };
+
+  const handleSelectPatientFromDebtList = (id: string) => {
+      setSelectedPatientId(id);
+      setCurrentView('patients');
+      setPatientTab('finance');
+      setShowDebtorsModal(false);
+  };
+
+  // Dynamic Card Title Helper
+  const getDynamicTitle = (type: 'income' | 'expenses' | 'profit' | 'patients') => {
+      if (type === 'income') {
+          return timeRange === 'today' ? t.incomeToday : timeRange === 'week' ? t.incomeWeekly : timeRange === 'month' ? t.monthlyIncome : t.incomeThirtyDays;
+      }
+      if (type === 'expenses') {
+          return timeRange === 'today' ? t.expensesToday : timeRange === 'week' ? t.expensesWeekly : timeRange === 'month' ? t.monthlyExpenses : t.expensesThirtyDays;
+      }
+      if (type === 'profit') {
+          return timeRange === 'today' ? t.profitToday : timeRange === 'week' ? t.profitWeekly : timeRange === 'month' ? t.netProfit : t.profitThirtyDays;
+      }
+      if (type === 'patients') {
+          return timeRange === 'today' ? t.newPatientsToday : timeRange === 'week' ? t.newPatientsWeekly : timeRange === 'month' ? t.newPatientsThisMonth : t.newPatientsThirtyDays;
+      }
+      return '';
   };
 
   if (!isUnlocked && currentPinValue) {
       return (
          <div className="min-h-[80vh] flex flex-col items-center justify-center animate-fade-in">
              <div className="bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-2xl border border-gray-100 dark:border-gray-700 max-w-sm w-full text-center">
-                 <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                 <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                      <Lock size={32} />
                  </div>
                  <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2">{t.locked}</h3>
@@ -327,6 +447,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
             </div>
         )}
 
+        <DebtorsModal 
+            isOpen={showDebtorsModal} 
+            onClose={() => setShowDebtorsModal(false)} 
+            t={t} 
+            debtors={stats.outstanding.list} 
+            onSelectPatient={handleSelectPatientFromDebtList}
+            currency={data.settings.currency}
+            isRTL={isRTL}
+        />
+
         <div className="w-full animate-fade-in pb-10 space-y-8 relative min-h-screen">
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                 <div>
@@ -358,7 +488,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
                                 {stats.income.prev > 0 ? Math.round(((stats.income.current - stats.income.prev) / stats.income.prev) * 100) : 100}%
                             </div>
                         </div>
-                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{t.monthlyIncome}</h3>
+                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('income')}</h3>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{data.settings.currency} {stats.income.current.toLocaleString()}</div>
                         <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.income.prev.toLocaleString()})</p>
                     </div>
@@ -371,7 +501,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
                                 {stats.expenses.prev > 0 ? Math.round(((stats.expenses.current - stats.expenses.prev) / stats.expenses.prev) * 100) : (stats.expenses.current > 0 ? 100 : 0)}%
                             </div>
                         </div>
-                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{t.monthlyExpenses}</h3>
+                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('expenses')}</h3>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{data.settings.currency} {stats.expenses.current.toLocaleString()}</div>
                         <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.expenses.prev.toLocaleString()})</p>
                     </div>
@@ -384,7 +514,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
                                 {stats.profit.prev > 0 ? Math.round(((stats.profit.current - stats.profit.prev) / stats.profit.prev) * 100) : 100}%
                             </div>
                         </div>
-                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{t.netProfit}</h3>
+                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('profit')}</h3>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{data.settings.currency} {stats.profit.current.toLocaleString()}</div>
                         <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.profit.prev.toLocaleString()})</p>
                     </div>
@@ -397,18 +527,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
                                 {stats.patients.prev > 0 ? Math.round(((stats.patients.current - stats.patients.prev) / stats.patients.prev) * 100) : (stats.patients.current > 0 ? 100 : 0)}%
                             </div>
                         </div>
-                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{t.newPatientsThisMonth}</h3>
+                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('patients')}</h3>
                         <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{stats.patients.current}</div>
                         <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.patients.prev})</p>
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-3xl p-6 text-white shadow-lg mt-6">
-                    <div className="flex items-center gap-3 mb-6"><div className="p-2 bg-white/20 rounded-xl"><FlaskConical size={24} className="text-white" /></div><h3 className="font-bold text-lg">{t.labOrdersStats}</h3></div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/10"><div className="text-blue-100 text-xs font-bold uppercase mb-1">{t.totalLabOrders}</div><div className="text-2xl font-bold">{stats.labStats.active}</div></div>
-                        <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/10"><div className="text-blue-100 text-xs font-bold uppercase mb-1">{t.readyLabOrders}</div><div className="text-2xl font-bold">{stats.labStats.ready}</div></div>
-                        <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-sm border border-white/10"><div className="text-blue-100 text-xs font-bold uppercase mb-1">{t.totalLabCost}</div><div className="text-2xl font-bold">{data.settings.currency} {stats.labStats.cost.toLocaleString()}</div></div>
+                {/* NEW Outstanding Balances Interactive Card */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <button 
+                        onClick={() => setShowDebtorsModal(true)}
+                        className="bg-gradient-to-br from-rose-600 to-red-700 p-8 rounded-[2.5rem] text-white shadow-xl shadow-red-500/20 flex flex-col text-start relative overflow-hidden group transition-all hover:-translate-y-1"
+                    >
+                        <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-6">
+                                <div className="p-4 bg-white/20 rounded-2xl backdrop-blur-md group-hover:scale-110 transition-transform"><CreditCard size={32} /></div>
+                                <div className="p-2 bg-white/10 rounded-full backdrop-blur-sm animate-pulse"><AlertCircle size={18} /></div>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80 mb-2 block">{t.totalOutstanding}</span>
+                            <div className="text-4xl md:text-5xl font-black mb-6">{data.settings.currency} {stats.outstanding.total.toLocaleString()}</div>
+                            <div className="flex items-center gap-2 font-bold text-sm bg-white/10 w-fit px-4 py-2 rounded-xl backdrop-blur-sm group-hover:bg-white/20 transition-colors">
+                                <span>{t.debtorsList}</span>
+                                <ChevronRight size={16} className={isRTL ? 'rotate-180' : ''} />
+                            </div>
+                        </div>
+                        <CreditCard className="absolute -bottom-10 -right-10 w-64 h-64 opacity-[0.05] group-hover:scale-110 transition-transform duration-700" />
+                    </button>
+
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-indigo-500/20">
+                        <div className="flex items-center gap-3 mb-6"><div className="p-3 bg-white/20 rounded-2xl shadow-inner"><FlaskConical size={28} className="text-white" /></div><h3 className="font-black text-xl tracking-tight">{t.labOrdersStats}</h3></div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white/10 p-5 rounded-3xl backdrop-blur-sm border border-white/10 shadow-inner"><div className="text-blue-100 text-[10px] font-black uppercase tracking-widest mb-1">{t.totalLabOrders}</div><div className="text-3xl font-black">{stats.labStats.active}</div></div>
+                            <div className="bg-white/10 p-5 rounded-3xl backdrop-blur-sm border border-white/10 shadow-inner"><div className="text-blue-100 text-[10px] font-black uppercase tracking-widest mb-1">{t.readyLabOrders}</div><div className="text-3xl font-black">{stats.labStats.ready}</div></div>
+                            <div className="bg-white/10 p-5 rounded-3xl backdrop-blur-sm border border-white/10 shadow-inner"><div className="text-blue-100 text-[10px] font-black uppercase tracking-widest mb-1">{t.totalLabCost}</div><div className="text-2xl font-black">{data.settings.currency} {stats.labStats.cost.toLocaleString()}</div></div>
+                        </div>
                     </div>
                 </div>
 
@@ -463,12 +615,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
                     <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2"><Stethoscope size={24} className="text-primary-600" />{t.doctors} - {t.dashboard}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {stats.doctorStats.map(doc => (
-                            <div key={doc.id} className="bg-white dark:bg-gray-800 p-5 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-4">
-                                <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-700 pb-3"><div className="font-bold text-lg text-gray-800 dark:text-white truncate">{doc.name}</div><div className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-bold">Dr.</div></div>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl"><Users size={16} className="mx-auto mb-1 text-gray-400" /><div className="text-xs text-gray-500 uppercase">{t.patients}</div><div className="font-bold text-gray-800 dark:text-white">{doc.totalPatients}</div></div>
-                                    <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl"><DollarSign size={16} className="mx-auto mb-1 text-green-500" /><div className="text-xs text-gray-500 uppercase">{t.income}</div><div className="font-bold text-gray-800 dark:text-white text-xs md:text-sm">{data.settings.currency} {doc.income.toLocaleString()}</div></div>
-                                    <div className="text-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-xl"><Calendar size={16} className="mx-auto mb-1 text-blue-500" /><div className="text-xs text-gray-500 uppercase">{t.appointments}</div><div className="font-bold text-gray-800 dark:text-white">{doc.appointments}</div></div>
+                            <div key={doc.id} className="bg-white dark:bg-gray-800 p-6 rounded-[2.5rem] shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-5 transition-all hover:shadow-lg">
+                                <div className="flex justify-between items-center border-b border-gray-50 dark:border-gray-700 pb-3"><div className="font-black text-xl text-gray-800 dark:text-white truncate">{doc.name}</div><div className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-tighter">Doctor</div></div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl"><Users size={20} className="mx-auto mb-1 text-gray-400" /><div className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{t.patients}</div><div className="font-black text-gray-800 dark:text-white text-lg">{doc.totalPatients}</div></div>
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl"><DollarSign size={20} className="mx-auto mb-1 text-green-500" /><div className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{t.income}</div><div className="font-black text-gray-800 dark:text-white text-sm">{data.settings.currency} {doc.income.toLocaleString()}</div></div>
+                                    <div className="text-center p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl"><Calendar size={20} className="mx-auto mb-1 text-blue-500" /><div className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{t.appointments}</div><div className="font-black text-gray-800 dark:text-white text-lg">{doc.appointments}</div></div>
+                                    <div className="text-center p-3 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-100 dark:border-red-900/30"><AlertCircle size={20} className="mx-auto mb-1 text-red-500" /><div className="text-[10px] text-red-600 dark:text-red-400 uppercase font-black tracking-widest">{t.totalOutstanding}</div><div className="font-black text-red-700 dark:text-red-300 text-sm">{data.settings.currency} {doc.debt.toLocaleString()}</div></div>
                                 </div>
                             </div>
                         ))}

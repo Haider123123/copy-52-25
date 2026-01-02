@@ -59,6 +59,13 @@ export interface Payment {
   type: 'payment' | 'charge';
 }
 
+export interface Examination {
+  id: string;
+  date: string;
+  amount: number;
+  description: string;
+}
+
 export interface ToothSurfaces {
   top: string;
   bottom: string;
@@ -178,6 +185,7 @@ export interface Patient {
   bodyMap?: Record<string, string>;
   appointments: Appointment[];
   payments: Payment[];
+  examinations?: Examination[];
   notes: string;
   rootCanals: RootCanalEntry[];
   treatmentSessions: TreatmentSession[];

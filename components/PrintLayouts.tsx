@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { ClinicData, Patient, Prescription, Payment, Appointment } from '../types';
-import { generateRxPdf, generatePaymentPdf, generateAppointmentPdf, generateDocumentPdf } from '../services/pdfGenerator';
+import { ClinicData, Patient, Prescription, Payment, Appointment, Examination } from '../types';
+import { generateRxPdf, generatePaymentPdf, generateAppointmentPdf, generateDocumentPdf, generateExaminationPdf } from '../services/pdfGenerator';
 
 interface PrintLayoutsProps {
   t: any;
@@ -13,6 +13,8 @@ interface PrintLayoutsProps {
   setPrintingPayment: (val: any) => void;
   printingAppointment: Appointment | null;
   setPrintingAppointment: (val: any) => void;
+  printingExamination: Examination | null;
+  setPrintingExamination: (val: any) => void;
   printingDocument?: { type: 'consent' | 'instructions', text: string, align: 'left'|'center'|'right', fontSize: number } | null;
   setPrintingDocument?: (val: any) => void;
   currentLang: any;
@@ -20,7 +22,7 @@ interface PrintLayoutsProps {
 }
 
 export const PrintLayouts: React.FC<PrintLayoutsProps> = ({
-  t, data, activePatient, printingRx, setPrintingRx, printingPayment, setPrintingPayment, printingAppointment, setPrintingAppointment, printingDocument, setPrintingDocument, currentLang
+  t, data, activePatient, printingRx, setPrintingRx, printingPayment, setPrintingPayment, printingAppointment, setPrintingAppointment, printingExamination, setPrintingExamination, printingDocument, setPrintingDocument, currentLang
 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -70,6 +72,25 @@ export const PrintLayouts: React.FC<PrintLayoutsProps> = ({
       };
       generate();
   }, [printingPayment]);
+
+  useEffect(() => {
+      const generate = async () => {
+          if (printingExamination && activePatient) {
+              setIsGenerating(true);
+              try {
+                  const blob = await generateExaminationPdf(data, activePatient, printingExamination, t);
+                  handleOpenPdf(blob);
+              } catch (e) {
+                  console.error(e);
+                  alert("Error generating Examination Receipt PDF");
+              } finally {
+                  setIsGenerating(false);
+                  setPrintingExamination(null);
+              }
+          }
+      };
+      generate();
+  }, [printingExamination]);
 
   useEffect(() => {
       const generate = async () => {

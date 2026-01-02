@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Filter, ChevronLeft, ChevronRight, Users, Plus, Check, X as XIcon, History, Trash2, Settings, Type as TypeIcon, Layout, Palette, Calendar as CalIcon, Smartphone, Stethoscope, PaintBucket } from 'lucide-react';
+import { Filter, ChevronLeft, ChevronRight, Users, Plus, Check, X as XIcon, History, Trash2, Settings, Type as TypeIcon, Layout, Palette, Calendar as CalIcon, Smartphone, Stethoscope, PaintBucket, Lock } from 'lucide-react';
 import { addMonths, addWeeks, addDays, endOfWeek, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, format } from 'date-fns';
 import { getLocalizedDate, formatTime12, getTreatmentLabel } from '../utils';
 import { DAY_COLORS } from '../constants';
@@ -28,6 +28,8 @@ interface CalendarViewProps {
   setShowNewPatientModal: (show: boolean) => void;
   openConfirm: (title: string, message: string, onConfirm: () => void) => void;
   setData?: React.Dispatch<React.SetStateAction<ClinicData>>;
+  activeDoctorId?: string | null;
+  isSecretary?: boolean;
 }
 
 const SMART_PALETTE = [
@@ -80,7 +82,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   t, data, currentLang, isRTL, calendarView, setCalendarView, currentDate, setCurrentDate,
   filteredAppointments, setSelectedAppointment, setAppointmentMode, setShowAppointmentModal,
   handleUpdateAppointmentStatus, handleDeleteAppointment, setSelectedPatientId, setCurrentView,
-  setPatientTab, setGuestToConvert, setShowNewPatientModal, openConfirm, setData
+  setPatientTab, setGuestToConvert, setShowNewPatientModal, openConfirm, setData, activeDoctorId, isSecretary
 }) => {
   const [showCalendarFilter, setShowCalendarFilter] = useState(false);
   const [showMonthSettings, setShowMonthSettings] = useState(false);
@@ -88,13 +90,11 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   const [calendarFilterDoctor, setCalendarFilterDoctor] = useState<string>('');
   const [calendarFilterGender, setCalendarFilterGender] = useState<string>('');
 
-  // ألوان الخط للأطباء (محلي فقط)
   const [doctorColors, setDoctorColors] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('dentro_device_doctor_colors');
     return saved ? JSON.parse(saved) : {};
   });
 
-  // ألوان البطاقة للأطباء (محلي فقط)
   const [doctorCardColors, setDoctorCardColors] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem('dentro_device_doctor_card_colors');
     return saved ? JSON.parse(saved) : {};
@@ -287,7 +287,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   )}
               </div>
 
-              {/* ألوان الأطباء - واجهة عصرية مطورة */}
               <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
                   <div className="flex flex-col mb-8">
                       <h4 className="text-sm font-black text-gray-800 dark:text-white uppercase flex items-center gap-2 tracking-widest">
@@ -329,7 +328,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   </div>
               </div>
 
-              {/* ألوان خلفية الأيام (متاحة للعرضين الشهري والأسبوعي) */}
               <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
                   <h4 className="text-xs font-black text-gray-700 dark:text-white mb-6 uppercase flex items-center gap-2 tracking-widest">
                       <CalIcon size={16} className="text-primary-600" />
@@ -535,7 +533,10 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                       return dayApps.length === 0 ? (
                         <div className="text-center py-12 text-gray-400">{t.noAppsDay}</div>
                       ) : (
-                        dayApps.map((appt, idx) => (
+                        dayApps.map((appt, idx) => {
+                         const canAccessProfile = !activeDoctorId || isSecretary || (appt.patient && appt.patient.doctorId === activeDoctorId);
+                         
+                         return (
                          <div key={appt.id} className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-wrap gap-4 items-center animate-fade-in group">
                              
                              <div className="w-20 text-center border-r border-gray-100 dark:border-gray-700 pr-4">
@@ -581,12 +582,19 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
                              <div className="flex gap-2">
                                  {appt.patientId ? (
-                                     <button 
-                                        onClick={() => { setSelectedPatientId(appt.patientId); setCurrentView('patients'); setPatientTab('overview'); }}
-                                        className="px-3 py-2 bg-primary-50 text-primary-600 rounded-lg font-bold text-sm hover:bg-primary-100 transition"
-                                     >
-                                         {t.profile}
-                                     </button>
+                                     canAccessProfile ? (
+                                         <button 
+                                            onClick={() => { setSelectedPatientId(appt.patientId); setCurrentView('patients'); setPatientTab('overview'); }}
+                                            className="px-3 py-2 bg-primary-50 text-primary-600 rounded-lg font-bold text-sm hover:bg-primary-100 transition"
+                                         >
+                                             {t.profile}
+                                         </button>
+                                     ) : (
+                                         <div className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-400 rounded-lg font-bold text-xs flex items-center gap-1.5 cursor-not-allowed border border-gray-200 dark:border-gray-600">
+                                             <Lock size={12} />
+                                             <span>{t.locked}</span>
+                                         </div>
+                                     )
                                  ) : (
                                      <button 
                                         onClick={() => { setGuestToConvert(appt); setShowNewPatientModal(true); }}
@@ -598,7 +606,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                                  <button onClick={() => openConfirm(t.deleteAppointment, t.deleteAppointmentConfirm, () => handleDeleteAppointment(appt.patientId, appt.id))} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"><Trash2 size={18} /></button>
                              </div>
                          </div>
-                     ))
+                        );
+                        })
                     );
                   })()}
               </div>

@@ -5,7 +5,7 @@ import { ClinicData, Language, Doctor, Secretary } from '../types';
 import { Building2, Stethoscope, Cloud, Layout, Database, ChevronLeft, ChevronRight, BrainCircuit, ShieldCheck, Settings as SettingsIcon, Sparkles } from 'lucide-react';
 
 // Sub-components imports
-import { BackupModal, RestoreModal, VerificationModal, ChangeAdminPasswordModal, DoctorDeleteChoiceModal } from './settings/SettingsModals';
+import { BackupModal, RestoreModal, VerificationModal, ChangeAdminPasswordModal, DoctorDeleteChoiceModal, DoctorUpdateChoiceModal } from './settings/SettingsModals';
 import { IdentitySection } from './settings/IdentitySection';
 import { ProfilesSection } from './settings/ProfilesSection';
 import { SyncSection } from './settings/SyncSection';
@@ -17,7 +17,7 @@ interface SettingsViewProps {
   data: ClinicData;
   setData: React.Dispatch<React.SetStateAction<ClinicData>>;
   handleAddDoctor: (name: string, username?: string, password?: string) => void;
-  handleUpdateDoctor: (id: string, updates: Partial<Doctor>) => void;
+  handleUpdateDoctor: (id: string, updates: Partial<Doctor>, forceLogout?: boolean) => void;
   handleDeleteDoctor: (id: string, deletePatients?: boolean) => void;
   handleAddSecretary: (name: string, username: string, password?: string) => void;
   handleDeleteSecretary: (id: string) => void;
@@ -56,8 +56,10 @@ export const SettingsView: React.FC<SettingsViewProps> = (props) => {
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [showChangeAdminPassModal, setShowChangeAdminPassModal] = useState(false);
   const [showDoctorDeleteChoice, setShowDoctorDeleteChoice] = useState(false);
+  const [showDoctorUpdateChoice, setShowDoctorUpdateChoice] = useState(false);
   const [verifyError, setVerifyError] = useState('');
   const [pendingAction, setPendingAction] = useState<{ type: 'edit' | 'delete', target: 'doctor' | 'secretary', data: any } | null>(null);
+  const [pendingUpdateData, setPendingUpdateData] = useState<any>(null);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [bulkSyncProgress, setBulkSyncProgress] = useState('');
 
@@ -109,7 +111,6 @@ export const SettingsView: React.FC<SettingsViewProps> = (props) => {
               }
               else if (action.type === 'delete') { 
                   setShowDoctorDeleteChoice(true); 
-                  // نترك pendingAction كما هو لأنه مطلوب في handleDoctorDeleteFinal
               }
           } else if (action.target === 'secretary') {
               if (action.type === 'delete') { 
@@ -132,6 +133,14 @@ export const SettingsView: React.FC<SettingsViewProps> = (props) => {
           handleDeleteDoctor(pendingAction.data.id, deletePatients); 
           setShowDoctorDeleteChoice(false); 
           setPendingAction(null); 
+      }
+  };
+
+  const handleDoctorUpdateFinal = (forceLogout: boolean) => {
+      if (pendingUpdateData) {
+          handleUpdateDoctor(pendingUpdateData.id, pendingUpdateData.updates, forceLogout);
+          setShowDoctorUpdateChoice(false);
+          setPendingUpdateData(null);
       }
   };
 
@@ -246,6 +255,7 @@ export const SettingsView: React.FC<SettingsViewProps> = (props) => {
         <VerificationModal show={showVerificationModal} onClose={() => setShowVerificationModal(false)} t={t} isRTL={isRTL} fontClass={fontClass} error={verifyError} onVerify={handleVerifySuccess} data={data} />
         <ChangeAdminPasswordModal show={showChangeAdminPassModal} onClose={() => setShowChangeAdminPassModal(false)} t={t} isRTL={isRTL} fontClass={fontClass} onSave={saveAdminPassword} />
         <DoctorDeleteChoiceModal show={showDoctorDeleteChoice} onClose={() => setShowDoctorDeleteChoice(false)} t={t} doctorName={pendingAction?.data?.name} onChoice={handleDoctorDeleteFinal} isRTL={isRTL} fontClass={fontClass} />
+        <DoctorUpdateChoiceModal show={showDoctorUpdateChoice} onClose={() => setShowDoctorUpdateChoice(false)} t={t} doctorName={pendingUpdateData?.updates?.name} onChoice={handleDoctorUpdateFinal} isRTL={isRTL} fontClass={fontClass} />
 
         <div className="space-y-16 max-w-4xl mx-auto">
           {isAdmin && (
@@ -256,7 +266,7 @@ export const SettingsView: React.FC<SettingsViewProps> = (props) => {
 
           {isAdmin && (
               <div id="profiles-mgmt" className="scroll-mt-10 animate-fade-in">
-                <ProfilesSection t={t} data={data} showAddDoctorModal={showAddDoctorModal} setShowAddDoctorModal={setShowAddDoctorModal} showEditDoctorModal={showEditDoctorModal} setShowEditDoctorModal={setShowEditDoctorModal} formDoc={formDoc} setFormDoc={setFormDoc} handleAddDoctor={handleAddDoctor} handleUpdateDoctor={handleUpdateDoctor} setPendingAction={setPendingAction} setShowVerificationModal={setShowVerificationModal} showAddSecretaryModal={showAddSecretaryModal} setShowAddSecretaryModal={setShowAddSecretaryModal} formSec={formSec} setFormSec={setFormSec} handleAddSecretary={handleAddSecretary} />
+                <ProfilesSection t={t} data={data} showAddDoctorModal={showAddDoctorModal} setShowAddDoctorModal={setShowAddDoctorModal} showEditDoctorModal={showEditDoctorModal} setShowEditDoctorModal={setShowEditDoctorModal} formDoc={formDoc} setFormDoc={setFormDoc} handleAddDoctor={handleAddDoctor} onUpdateAttempt={(id: string, updates: any) => { setPendingUpdateData({ id, updates }); setShowDoctorUpdateChoice(true); }} setPendingAction={setPendingAction} setShowVerificationModal={setShowVerificationModal} showAddSecretaryModal={showAddSecretaryModal} setShowAddSecretaryModal={setShowAddSecretaryModal} formSec={formSec} setFormSec={setFormSec} handleAddSecretary={handleAddSecretary} />
               </div>
           )}
 

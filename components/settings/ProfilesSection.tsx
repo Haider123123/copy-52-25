@@ -13,7 +13,7 @@ interface ProfilesSectionProps {
   formDoc: any;
   setFormDoc: (val: any) => void;
   handleAddDoctor: (name: string, user?: string, pass?: string) => void;
-  handleUpdateDoctor: (id: string, updates: any) => void;
+  onUpdateAttempt: (id: string, updates: any) => void;
   setPendingAction: (val: any) => void;
   setShowVerificationModal: (val: boolean) => void;
   showAddSecretaryModal: boolean;
@@ -25,7 +25,7 @@ interface ProfilesSectionProps {
 
 export const ProfilesSection: React.FC<ProfilesSectionProps> = ({
   t, data, showAddDoctorModal, setShowAddDoctorModal, showEditDoctorModal, setShowEditDoctorModal,
-  formDoc, setFormDoc, handleAddDoctor, handleUpdateDoctor, setPendingAction, setShowVerificationModal,
+  formDoc, setFormDoc, handleAddDoctor, onUpdateAttempt, setPendingAction, setShowVerificationModal,
   showAddSecretaryModal, setShowAddSecretaryModal, formSec, setFormSec, handleAddSecretary
 }) => {
   return (
@@ -42,7 +42,7 @@ export const ProfilesSection: React.FC<ProfilesSectionProps> = ({
             {(showAddDoctorModal || showEditDoctorModal) && (
                 <form onSubmit={(e) => {
                     e.preventDefault();
-                    if (showEditDoctorModal) handleUpdateDoctor(formDoc.id, { name: formDoc.name, username: formDoc.user, password: formDoc.pass });
+                    if (showEditDoctorModal) onUpdateAttempt(formDoc.id, { name: formDoc.name, username: formDoc.user, password: formDoc.pass });
                     else handleAddDoctor(formDoc.name, formDoc.user, formDoc.pass);
                     setShowAddDoctorModal(false); setShowEditDoctorModal(false);
                 }} className="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-[2.5rem] mb-8 border-2 border-primary-100 dark:border-primary-900 animate-fade-in space-y-5 shadow-inner">

@@ -1,10 +1,13 @@
+
 import React, { useState, useRef } from 'react';
 import { User, Activity, Calendar, CreditCard, Pill, FileText, Image as ImageIcon, Sparkles, BrainCircuit } from 'lucide-react';
 import { TabButton } from './Shared';
-import { ClinicData, Patient, Appointment, MedicalConditionItem, PatientQueryAnswer, ToothNote, Payment } from '../types';
+import { ClinicData, Patient, Appointment, MedicalConditionItem, PatientQueryAnswer, ToothNote, Payment, Examination } from '../types';
 import { DocumentSettingsModal, MedicalHistoryModal, PatientQueriesModal, PaymentModal, RxSettingsModal } from './AppModals';
 import { PatientImages } from './PatientImages';
 import { AIAssistant } from './patient/AIAssistant';
+import { ExaminationSection } from './patient/ExaminationSection';
+import { ExaminationModal } from './modals/ExaminationModal';
 
 // Sub-components imports
 import { PatientHeader } from './patient/PatientHeader';
@@ -40,6 +43,7 @@ interface PatientDetailsProps {
   setPrintingRx: (rx: any) => void;
   setPrintingPayment: (p: any) => void;
   setPrintingAppointment: (appt: any) => void;
+  setPrintingExamination: (e: any) => void;
   handleRxFileUpload: (e: any) => void;
   setShowEditPatientModal: (show: boolean) => void;
   setShowAppointmentModal: (show: boolean) => void;
@@ -59,7 +63,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
   updatePatient, handleDeletePatient, handleUpdateTooth, handleUpdateToothSurface, handleUpdateToothNote, handleUpdateHead, handleUpdateBody,
   handleAddRCT, handleDeleteRCT,
   handleDeleteAppointment, handleUpdateAppointmentStatus, handleDeleteRx, setPrintingRx,
-  setPrintingPayment, setPrintingAppointment, handleRxFileUpload, setShowEditPatientModal,
+  setPrintingPayment, setPrintingAppointment, setPrintingExamination, handleRxFileUpload, setShowEditPatientModal,
   setShowAppointmentModal, setSelectedAppointment, setAppointmentMode, setShowPaymentModal,
   setPaymentType, setShowRxModal, setShowAddMasterDrugModal, openConfirm, setPrintingDocument,
   isSecretary
@@ -70,11 +74,17 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
   const [showMedicalHistoryModal, setShowMedicalHistoryModal] = useState(false);
   const [showPatientQueriesModal, setShowPatientQueriesModal] = useState(false);
   const [showRxSettingsModal, setShowRxSettingsModal] = useState(false);
+  
   const [selectedPaymentTransaction, setSelectedPaymentTransaction] = useState<Payment | null>(null);
   const [localPaymentModalOpen, setLocalPaymentModalOpen] = useState(false);
   const [localPaymentType, setLocalPaymentType] = useState<'payment' | 'charge'>('payment');
+  
   const [showAIAssistant, setShowAIAssistant] = useState(false);
   const profilePicInputRef = useRef<HTMLInputElement>(null);
+
+  // Examination Local States
+  const [showExaminationModal, setShowExaminationModal] = useState(false);
+  const [editingExamination, setEditingExamination] = useState<Examination | undefined>();
 
   const openDocSettings = (type: 'consent' | 'instructions') => { setDocSettingsType(type); setShowDocSettingsModal(true); };
   const handleQuickPrint = (type: 'consent' | 'instructions') => {
@@ -84,6 +94,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
   };
   const handleSaveMedicalHistory = (conditions: MedicalConditionItem[]) => { updatePatient(activePatient.id, { structuredMedicalHistory: conditions }); };
   const handleSavePatientQueries = (answers: PatientQueryAnswer[]) => { updatePatient(activePatient.id, { patientQueries: answers }); };
+  
   const handleSavePaymentTransaction = (paymentData: { amount: number, description: string, date: string, type: 'payment' | 'charge' }) => {
       if (selectedPaymentTransaction) { const updatedPayments = activePatient.payments.map(p => p.id === selectedPaymentTransaction.id ? { ...p, ...paymentData } : p); updatePatient(activePatient.id, { payments: updatedPayments }); }
       else { const newPayment: Payment = { id: Date.now().toString(), date: paymentData.date || new Date().toISOString(), amount: paymentData.amount, type: paymentData.type, description: paymentData.description }; updatePatient(activePatient.id, { payments: [newPayment, ...activePatient.payments] }); }
@@ -91,13 +102,27 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
   };
   const handleDeletePaymentTransaction = (id: string) => { const updatedPayments = activePatient.payments.filter(p => p.id !== id); updatePatient(activePatient.id, { payments: updatedPayments }); };
   const openLocalPaymentModal = (type: 'payment' | 'charge', payment?: Payment) => { setLocalPaymentType(type); if (payment) { setSelectedPaymentTransaction(payment); } else { setSelectedPaymentTransaction(null); } setLocalPaymentModalOpen(true); };
+
+  // Examination Logic
+  const handleSaveExamination = (examData: Examination) => {
+      const exams = activePatient.examinations || [];
+      const updatedExams = editingExamination 
+          ? exams.map(e => e.id === editingExamination.id ? examData : e)
+          : [examData, ...exams];
+      updatePatient(activePatient.id, { examinations: updatedExams });
+  };
+  const handleDeleteExamination = (id: string) => {
+      const updatedExams = (activePatient.examinations || []).filter(e => e.id !== id);
+      updatePatient(activePatient.id, { examinations: updatedExams });
+  };
+
   const handleProfilePicUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { updatePatient(activePatient.id, { profilePicture: reader.result as string, profilePictureDriveId: undefined }); }; reader.readAsDataURL(file); } };
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in w-full pb-10 relative">
       
       {showAIAssistant && (
-        <AIAssistant patient={activePatient} data={data} t={t} onClose={() => setShowAIAssistant(false)} />
+        <AIAssistant patient={activePatient} data={data} setData={setData} t={t} onClose={() => setShowAIAssistant(false)} />
       )}
 
       <DocumentSettingsModal show={showDocSettingsModal} onClose={() => setShowDocSettingsModal(false)} t={t} data={data} setData={setData} currentLang={currentLang} type={docSettingsType} />
@@ -105,6 +130,16 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
       <PatientQueriesModal show={showPatientQueriesModal} onClose={() => setShowPatientQueriesModal(false)} t={t} currentLang={currentLang} initialData={activePatient.patientQueries} onSave={handleSavePatientQueries} />
       <RxSettingsModal show={showRxSettingsModal} onClose={() => setShowRxSettingsModal(false)} t={t} data={data} setData={setData} handleRxFileUpload={handleRxFileUpload} setShowAddMasterDrugModal={setShowAddMasterDrugModal} currentLang={currentLang} />
       <PaymentModal show={localPaymentModalOpen} onClose={() => setLocalPaymentModalOpen(false)} t={t} activePatient={activePatient} paymentType={selectedPaymentTransaction ? selectedPaymentTransaction.type : localPaymentType} data={data} handleSavePayment={handleSavePaymentTransaction} selectedPayment={selectedPaymentTransaction} currentLang={currentLang} />
+      
+      <ExaminationModal 
+        show={showExaminationModal} 
+        onClose={() => setShowExaminationModal(false)} 
+        t={t} 
+        data={data} 
+        currentLang={currentLang} 
+        selectedItem={editingExamination} 
+        handleSave={handleSaveExamination} 
+      />
 
       <div className="shrink-0 bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 flex flex-col">
         <PatientHeader 
@@ -126,6 +161,10 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
           <TabButton icon={Activity} label={t.treatment} active={patientTab === 'chart'} onClick={() => setPatientTab('chart')} />
           <TabButton icon={ImageIcon} label={t.images} active={patientTab === 'images'} onClick={() => setPatientTab('images')} />
           <TabButton icon={Calendar} label={t.visitHistory} active={patientTab === 'visits'} onClick={() => setPatientTab('visits')} />
+          
+          {/* New Tab for Examination */}
+          <TabButton icon={Activity} label={t.examination} active={patientTab === 'examination'} onClick={() => setPatientTab('examination')} />
+          
           {!isSecretary && <TabButton icon={CreditCard} label={t.financials} active={patientTab === 'finance'} onClick={() => setPatientTab('finance')} />}
           <TabButton icon={Pill} label={t.prescriptions} active={patientTab === 'prescriptions'} onClick={() => setPatientTab('prescriptions')} />
           <TabButton icon={FileText} label={t.documents} active={patientTab === 'documents'} onClick={() => setPatientTab('documents')} />
@@ -137,6 +176,21 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
         {patientTab === 'chart' && <TreatmentSection activePatient={activePatient} data={data} t={t} currentLang={currentLang} isRTL={isRTL} updatePatient={updatePatient} handleUpdateTooth={handleUpdateTooth} handleUpdateToothSurface={handleUpdateToothSurface} handleUpdateToothNote={handleUpdateToothNote} handleUpdateHead={handleUpdateHead} handleUpdateBody={handleUpdateBody} handleAddRCT={handleAddRCT} handleDeleteRCT={handleDeleteRCT} rctInput={rctInput} setRctInput={setRctInput} openConfirm={openConfirm} />}
         {patientTab === 'images' && <PatientImages t={t} patient={activePatient} onUpdatePatient={updatePatient} googleDriveLinked={data.settings.googleDriveLinked} googleDriveRootId={data.settings.googleDriveRootId} openConfirm={openConfirm} />}
         {patientTab === 'visits' && <VisitsSection activePatient={activePatient} t={t} currentLang={currentLang} isRTL={isRTL} setShowAppointmentModal={setShowAppointmentModal} setSelectedAppointment={setSelectedAppointment} setAppointmentMode={setAppointmentMode} setPrintingAppointment={setPrintingAppointment} handleDeleteAppointment={handleDeleteAppointment} openConfirm={openConfirm} />}
+        
+        {/* Examination Content */}
+        {patientTab === 'examination' && (
+          <ExaminationSection 
+            activePatient={activePatient} 
+            data={data} 
+            setData={setData} 
+            t={t} 
+            openExaminationModal={(exam) => { setEditingExamination(exam); setShowExaminationModal(true); }}
+            setPrintingExamination={setPrintingExamination}
+            openConfirm={openConfirm}
+            handleDeleteExamination={handleDeleteExamination}
+          />
+        )}
+        
         {patientTab === 'finance' && !isSecretary && <FinancialsSection activePatient={activePatient} data={data} setData={setData} t={t} openLocalPaymentModal={openLocalPaymentModal} setPrintingPayment={setPrintingPayment} openConfirm={openConfirm} handleDeletePatientTransaction={handleDeletePaymentTransaction} />}
         {patientTab === 'prescriptions' && <PrescriptionsSection activePatient={activePatient} t={t} currentLang={currentLang} setShowRxModal={setShowRxModal} setShowRxSettingsModal={setShowRxSettingsModal} setPrintingRx={setPrintingRx} handleDeleteRx={handleDeleteRx} openConfirm={openConfirm} />}
         {patientTab === 'documents' && <DocumentsSection t={t} data={data} openDocSettings={openDocSettings} handleQuickPrint={handleQuickPrint} />}

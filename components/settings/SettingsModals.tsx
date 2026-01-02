@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, FileUp, Database, UserCircle, Download, PlusCircle, RefreshCw, AlertTriangle, ShieldCheck, Lock, Key, AlertOctagon, UserX, FolderX } from 'lucide-react';
+import { X, FileUp, Database, UserCircle, Download, PlusCircle, RefreshCw, AlertTriangle, ShieldCheck, Lock, Key, AlertOctagon, UserX, FolderX, LogOut, UserCheck } from 'lucide-react';
 import { storageService } from '../../services/storage';
 
 export const BackupModal = ({ show, onClose, t, data, isRTL, fontClass }: any) => {
@@ -212,5 +212,50 @@ export const DoctorDeleteChoiceModal = ({ show, onClose, t, onChoice, doctorName
                 <button onClick={onClose} className="w-full mt-6 py-4 text-gray-400 hover:text-gray-600 font-black text-sm uppercase tracking-widest">{t.cancel}</button>
             </div>
         </div>, document.body
+    );
+};
+
+export const DoctorUpdateChoiceModal = ({ show, onClose, doctorName, isRTL, fontClass, onChoice }: any) => {
+    if (!show) return null;
+    return createPortal(
+        <div className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+            <div className={`bg-white dark:bg-gray-800 w-full max-w-sm rounded-[2.5rem] shadow-2xl p-8 animate-scale-up border border-gray-100 dark:border-gray-700 ${fontClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
+                <div className="text-center mb-6">
+                    <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <UserCheck size={32} />
+                    </div>
+                    <h3 className="font-black text-xl text-gray-900 dark:text-white mb-2">
+                        {isRTL ? `تم تحديث بيانات ${doctorName}` : `Profile Updated: ${doctorName}`}
+                    </h3>
+                    <p className="text-sm text-gray-500 font-bold">
+                        {isRTL ? "كيف ترغب في التعامل مع الجلسة الحالية؟" : "How would you like to handle the active session?"}
+                    </p>
+                </div>
+                <div className="space-y-3">
+                    <button 
+                        onClick={() => onChoice(false)}
+                        className="w-full flex items-center gap-4 p-4 bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 border-2 border-transparent hover:border-blue-500 transition-all rounded-2xl group text-start"
+                    >
+                        <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-sm text-blue-600"><UserCircle size={20} /></div>
+                        <div className="flex-1">
+                            <div className="font-black text-gray-800 dark:text-white text-sm">{isRTL ? "إبقاء تسجيل الدخول" : "Keep Session Active"}</div>
+                            <div className="text-[10px] text-gray-400 font-bold uppercase">{isRTL ? "لن يتم الخروج من الحساب" : "No logout required"}</div>
+                        </div>
+                    </button>
+                    
+                    <button 
+                        onClick={() => onChoice(true)}
+                        className="w-full flex items-center gap-4 p-4 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 border-2 border-transparent hover:border-orange-500 transition-all rounded-2xl group text-start"
+                    >
+                        <div className="w-10 h-10 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-sm text-orange-600"><LogOut size={20} /></div>
+                        <div className="flex-1">
+                            <div className="font-black text-orange-900 dark:text-orange-100 text-sm">{isRTL ? "تسجيل الخروج والعودة للقائمة" : "Logout & Redirect"}</div>
+                            <div className="text-[10px] text-orange-600/70 font-bold uppercase">{isRTL ? "يتطلب تسجيل الدخول بالبيانات الجديدة" : "Requires new login"}</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 };

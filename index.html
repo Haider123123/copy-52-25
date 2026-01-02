@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Dentro</title>
     
     <!-- Google API Client Libraries -->
@@ -13,6 +12,7 @@
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="./manifest.json" />
     <meta name="theme-color" content="#4f46e5" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Dentro" />
@@ -73,10 +73,15 @@
       @keyframes scale-up { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
       .animate-scale-up { animation: scale-up 0.2s ease-out forwards; }
       
-      /* New style to hide text without using type="password" to fool password managers */
       .secure-input-field {
         -webkit-text-security: disc !important;
         text-security: disc !important;
+      }
+
+      /* Fix for iOS standalone mode overscrolling */
+      body {
+        overscroll-behavior-y: none;
+        -webkit-tap-highlight-color: transparent;
       }
     </style>
   <script type="importmap">
@@ -100,7 +105,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-page-bg transition-colors duration-300">
+  <body class="bg-page-bg transition-colors duration-300 overflow-x-hidden">
     <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

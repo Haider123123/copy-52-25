@@ -1,4 +1,13 @@
 export const en = {
+    offlineTitle: "No Internet Connection",
+    offlineDesc: "It seems you are currently offline. You can still access your clinical data and continue working.",
+    continueOffline: "Continue Offline",
+    offlineAccessDenied: "Access Denied (Expired)",
+    offlineLimitExceeded: "You haven't connected to the internet for more than 3 days. For security and data integrity, please connect to the internet once to re-verify your session.",
+    reconnectNow: "Connect to Internet",
+    lastSyncLabel: "Last Online Sync:",
+    loginRequiredOffline: "Login Required Online",
+    loginRequiredOfflineDesc: "You haven't logged in on this device yet. You must connect to the internet to log in for the first time, then you can use the app offline.",
     privacyPolicy: "Privacy Policy",
     termsOfService: "Terms of Service",
     legalContent: {

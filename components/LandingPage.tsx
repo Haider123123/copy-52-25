@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Activity, Globe, ArrowRight, Instagram, CheckCircle2, ChevronDown, User, Grid, Calendar, DollarSign, FlaskConical, FileText, BarChart3, Cloud, LayoutDashboard, StickyNote, ShoppingBag, PlusCircle, Sparkles, MonitorSmartphone, Palette, UsersRound, X, Database, Paintbrush, ShieldCheck, UserCog, Contact, Image as ImageIcon, Shield, BrainCircuit } from 'lucide-react';
+import { Activity, Globe, ArrowRight, Instagram, CheckCircle2, ChevronDown, User, Grid, Calendar, DollarSign, FlaskConical, FileText, BarChart3, Cloud, LayoutDashboard, StickyNote, ShoppingBag, PlusCircle, Sparkles, MonitorSmartphone, Palette, UsersRound, X, Database, Paintbrush, ShieldCheck, UserCog, Contact, Image as ImageIcon, Shield, BrainCircuit, MessageCircle, Send } from 'lucide-react';
 import { PRICING_PLANS } from '../constants';
 import { LABELS } from '../locales';
 import { Logo } from './Logo';
@@ -64,8 +64,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setAppState, landingLa
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const openInstagram = () => {
-    window.open('https://instagram.com/dentro_app', '_blank');
+  const handleContact = (platform: 'whatsapp' | 'telegram' | 'instagram') => {
+    let url = '';
+    if (platform === 'whatsapp') url = 'https://wa.me/9647782605545';
+    else if (platform === 'telegram') url = 'https://t.me/Dentro_co';
+    else if (platform === 'instagram') url = 'https://instagram.com/dentro_app';
+    
+    window.open(url, '_blank');
     setShowSubscribeModal(false);
   };
 
@@ -75,22 +80,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setAppState, landingLa
 
   const modalTexts = {
       en: {
-          title: "Subscription",
-          message: "Subscription is done by directly contacting the app's account on Instagram.",
-          cancel: "Cancel",
-          confirm: "Subscribe"
+          title: "Subscription & Trial",
+          message: "Contact us via your preferred platform to request a trial or subscribe.",
+          cancel: "Close",
       },
       ar: {
-          title: "الاشتراك",
-          message: "ان الاشتراك يكون عن طريق التواصل المباشر مع الحساب الخاص بالتطبيق على انستقرام",
-          cancel: "الغاء",
-          confirm: "اشتراك"
+          title: "الاشتراك والنسخة التجريبية",
+          message: "يمكنك التواصل معنا مباشرة عبر المنصة التي تفضلها لطلب النسخة التجريبية أو الاشتراك.",
+          cancel: "إغلاق",
       },
       ku: {
-          title: "بەشداریکردن",
-          message: "بەشداریکردن لە ڕێگەی پەیوەندی راستەوخۆ بە هەژماری ئینستاگرامەوە دەبێت",
-          cancel: "هەڵوەشاندنەوە",
-          confirm: "بەشداریکردن"
+          title: "بەشداریکردن و تاقیکردنەوە",
+          message: "دەتوانیت لە ڕێگەی ئەو پلاتفۆرمەی کە پێت باشە پەیوەندیمان پێوە بکەیت بۆ داواکردنی وەشانی تاقیکردنەوە یان بەشداریکردن.",
+          cancel: "داخستن",
       }
   };
 
@@ -154,43 +156,60 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setAppState, landingLa
             isRTL={isRTL}
         />
 
-        {/* Subscription Modal */}
+        {/* Subscription Choice Modal */}
         {showSubscribeModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
-                <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl max-w-sm w-full p-6 relative border border-gray-100 dark:border-gray-700 animate-scale-up">
+                <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-2xl max-w-sm w-full p-8 relative border border-gray-100 dark:border-gray-700 animate-scale-up">
                     <button 
                         onClick={() => setShowSubscribeModal(false)}
-                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
+                        className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition"
                     >
-                        <X size={20} />
+                        <X size={24} />
                     </button>
                     
                     <div className="flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-600 rounded-full flex items-center justify-center mb-6 shadow-lg text-white">
-                            <Instagram size={32} />
+                        <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-2xl flex items-center justify-center mb-6 shadow-inner">
+                            <Sparkles size={32} />
                         </div>
                         
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+                        <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-3">
                             {currentModalText.title}
                         </h3>
                         
-                        <p className="text-gray-600 dark:text-gray-300 mb-8 leading-relaxed px-2">
+                        <p className="text-gray-600 dark:text-gray-400 mb-8 leading-relaxed px-2 font-bold text-sm">
                             {currentModalText.message}
                         </p>
                         
-                        <div className="flex gap-3 w-full">
+                        <div className="flex flex-col gap-3 w-full">
+                            <button 
+                                onClick={() => handleContact('whatsapp')}
+                                className="w-full py-4 bg-[#25D366] text-white rounded-2xl font-black shadow-lg shadow-green-500/30 hover:opacity-90 transition transform active:scale-95 flex items-center justify-center gap-3"
+                            >
+                                <MessageCircle size={22} />
+                                <span>WhatsApp</span>
+                            </button>
+
+                            <button 
+                                onClick={() => handleContact('telegram')}
+                                className="w-full py-4 bg-[#0088cc] text-white rounded-2xl font-black shadow-lg shadow-blue-500/30 hover:opacity-90 transition transform active:scale-95 flex items-center justify-center gap-3"
+                            >
+                                <Send size={22} />
+                                <span>Telegram</span>
+                            </button>
+
+                            <button 
+                                onClick={() => handleContact('instagram')}
+                                className="w-full py-4 bg-gradient-to-r from-[#833ab4] via-[#fd1d1d] to-[#fcb045] text-white rounded-2xl font-black shadow-lg shadow-orange-500/30 hover:opacity-90 transition transform active:scale-95 flex items-center justify-center gap-3"
+                            >
+                                <Instagram size={22} />
+                                <span>Instagram</span>
+                            </button>
+                            
                             <button 
                                 onClick={() => setShowSubscribeModal(false)}
-                                className="flex-1 py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                                className="w-full mt-2 py-3 text-gray-400 font-bold hover:text-gray-600 transition"
                             >
                                 {currentModalText.cancel}
-                            </button>
-                            <button 
-                                onClick={openInstagram}
-                                className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-lg shadow-purple-500/30 hover:opacity-90 transition transform active:scale-95 flex items-center justify-center gap-2"
-                            >
-                                <Instagram size={18} />
-                                {currentModalText.confirm}
                             </button>
                         </div>
                     </div>
@@ -262,7 +281,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ setAppState, landingLa
                     onClick={handleSubscribeClick}
                     className="px-8 py-4 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-800 dark:text-white border border-gray-200 dark:border-gray-700 rounded-2xl font-bold text-lg shadow-lg transition transform hover:-translate-y-1 flex items-center justify-center gap-2"
                 >
-                    <Instagram size={20} />
+                    <Sparkles size={20} className="text-amber-500" />
                     {t.requestTrial}
                 </button>
             </div>

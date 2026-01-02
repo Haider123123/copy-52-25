@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Menu, X, Plus, Search, Trash2, Pill, WifiOff, LayoutDashboard, RefreshCw, AlertCircle, CloudCheck, Cloud } from 'lucide-react';
-import { ClinicData, Doctor, Secretary, Patient, Appointment, Payment, Tooth, RootCanalEntry, Memo, Prescription, Medication, SupplyItem, ExpenseItem, TodoItem, ToothSurfaces, LabOrder, InventoryItem, ToothNote, Language, MemoStyle } from './types';
+import { Menu, X, Plus, Search, Trash2, Pill, WifiOff, LayoutDashboard, RefreshCw, AlertCircle, CloudCheck, Cloud, Wifi, ArrowRight, LogIn, Download } from 'lucide-react';
+import { ClinicData, Doctor, Secretary, Patient, Appointment, Payment, Tooth, RootCanalEntry, Memo, Prescription, Medication, SupplyItem, ExpenseItem, TodoItem, ToothSurfaces, LabOrder, InventoryItem, ToothNote, Language, MemoStyle, Examination } from './types';
 import { INITIAL_DATA } from './initialData';
 import { LABELS } from './locales';
 import { storageService } from './services/storage';
@@ -24,14 +24,17 @@ import { LabOrdersView } from './components/LabOrdersView';
 import { PrintLayouts } from './components/PrintLayouts';
 import { SupplyModal, MemoModal, PatientModal, PaymentModal, AppointmentModal, AddMasterDrugModal, ExpenseModal, LabOrderModal, InventoryModal } from './components/AppModals';
 import { ProfileSelector } from './components/ProfileSelector';
-import { isSameDay, isSameWeek, isSameMonth, addDays } from 'date-fns';
+import { isSameDay, isSameWeek, isSameMonth, addDays, differenceInDays } from 'date-fns';
 import { Logo } from './components/Logo';
 import { THEMES } from './constants';
 import { hexToRgb } from './utils';
 
+const OFFLINE_LIMIT_DAYS = 3;
+
 export default function App() {
   const [data, setData] = useState<ClinicData>(INITIAL_DATA);
-  const [appState, setAppState] = useState<'landing' | 'auth' | 'profile_select' | 'app' | 'loading'>('loading');
+  const [appState, setAppState] = useState<'landing' | 'auth' | 'profile_select' | 'app' | 'loading' | 'offline_prompt'>('loading');
+  const [offlineStatus, setOfflineStatus] = useState<'idle' | 'prompting' | 'blocked' | 'login_required'>('idle');
   const [onboardingStep, setOnboardingStep] = useState(0); 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [loginEmail, setLoginEmail] = useState('');
@@ -77,6 +80,7 @@ export default function App() {
   const [printingRx, setPrintingRx] = useState<Prescription | null>(null);
   const [printingPayment, setPrintingPayment] = useState<Payment | null>(null);
   const [printingAppointment, setPrintingAppointment] = useState<Appointment | null>(null);
+  const [printingExamination, setPrintingExamination] = useState<Examination | null>(null);
   const [printingDocument, setPrintingDocument] = useState<{ type: 'consent' | 'instructions', text: string, align: 'left'|'center'|'right', fontSize: number, topMargin: number } | null>(null);
   const [showSupplyModal, setShowSupplyModal] = useState(false);
   const [selectedSupply, setSelectedSupply] = useState<SupplyItem | null>(null);
@@ -92,10 +96,29 @@ export default function App() {
   });
   const [activeThemeId, setActiveThemeId] = useState<string>(() => localStorage.getItem('dentro_theme_id') || 'classic');
 
+  // New state for PWA Update
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
+
+  useEffect(() => {
+    // Check for App Updates
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
   const updateLocalData = (updater: (prev: ClinicData) => ClinicData) => {
       setData(prev => {
           const next = updater(prev);
-          return { ...next, lastUpdated: isInitialLoading ? prev.lastUpdated : Date.now() };
+          const updatedNext = { 
+            ...next, 
+            lastUpdated: Date.now() 
+          };
+          storageService.saveData(updatedNext);
+          return updatedNext;
       });
   };
 
@@ -111,12 +134,128 @@ export default function App() {
       };
   };
 
-  // Initial Boot Logic
+  const handleManualSync = async (force: boolean = false) => {
+      if (!navigator.onLine || !data.settings.isLoggedIn || (syncStatus === 'syncing' && !force)) return;
+      setSyncStatus('syncing');
+      try {
+          const cloudData = await supabaseService.loadData();
+          if (cloudData) {
+              const localData = storageService.loadData();
+              const cloudTimestamp = cloudData.lastUpdated || 0;
+              const localTimestamp = localData?.lastUpdated || 0;
+
+              if (cloudTimestamp > localTimestamp) {
+                  const merged = mergeDataWithLocalPrefs(cloudData);
+                  setData(merged); 
+                  storageService.saveData(merged); 
+                  setSyncStatus('synced'); 
+                  localStorage.setItem('dentro_last_online_sync', Date.now().toString());
+                  return true;
+              } else if (localTimestamp > cloudTimestamp) {
+                  await supabaseService.saveData(data);
+                  setSyncStatus('synced');
+                  localStorage.setItem('dentro_last_online_sync', Date.now().toString());
+                  return true;
+              }
+          }
+          setSyncStatus('synced'); 
+          return true;
+      } catch (e) { 
+          setSyncStatus('error'); 
+          return false; 
+      }
+  };
+
+  const forceSyncToCloud = async (overrideData?: ClinicData) => {
+      const dataToSave = overrideData || data;
+      if (!navigator.onLine || !dataToSave.settings.isLoggedIn) return;
+      setSyncStatus('syncing');
+      try {
+          await supabaseService.saveData(dataToSave); 
+          setSyncStatus('synced');
+          localStorage.setItem('dentro_last_online_sync', Date.now().toString());
+          setData(prev => ({ ...prev, lastSynced: new Date().toISOString() }));
+      } catch (e) { setSyncStatus('error'); }
+  };
+
+  const checkOfflineCondition = () => {
+    const lastSync = localStorage.getItem('dentro_last_online_sync');
+    if (!lastSync) return false;
+    const diff = differenceInDays(new Date(), new Date(parseInt(lastSync)));
+    return diff < OFFLINE_LIMIT_DAYS;
+  };
+
+  const handleContinueOffline = () => {
+    if (checkOfflineCondition()) {
+        setAppState('profile_select');
+        finalizeBoot();
+    } else {
+        setOfflineStatus('blocked');
+    }
+  };
+
+  const finalizeBoot = () => {
+    const currentData = storageService.loadData();
+    if (currentData && currentData.clinicName) {
+      const savedProfileType = localStorage.getItem('dentro_profile_type');
+      const savedDocId = localStorage.getItem('dentro_active_profile');
+      const savedSecId = localStorage.getItem('dentro_active_secretary');
+
+      if (savedProfileType === 'doctor' && savedDocId) {
+          setActiveDoctorId(savedDocId);
+          setAppState('app');
+      } else if (savedProfileType === 'secretary' && savedSecId) {
+          setActiveSecretaryId(savedSecId);
+          setAppState('app');
+          setCurrentView('patients');
+      } else if (savedProfileType === 'admin') {
+          setActiveDoctorId(null);
+          setActiveSecretaryId(null);
+          setAppState('app');
+      } else {
+          setAppState('profile_select');
+      }
+    } else {
+      setAppState('app');
+    }
+    setIsInitialLoading(false);
+  };
+
+  useEffect(() => {
+    const handleOnline = () => {
+        setIsOffline(false);
+        if (data.settings.isLoggedIn) {
+            handleManualSync(true); 
+        }
+    };
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+    };
+  }, [data.settings.isLoggedIn]);
+
   useEffect(() => {
     const initApp = async () => {
       const localData = storageService.loadData();
       if (localData && localData.clinicName) {
         setData(mergeDataWithLocalPrefs(localData));
+      }
+
+      const isInitiallyOffline = !navigator.onLine;
+      
+      if (isInitiallyOffline) {
+          const hasLoggedInBefore = localData && localData.settings && localData.settings.isLoggedIn;
+          if (!hasLoggedInBefore) {
+              setOfflineStatus('login_required');
+              setAppState('offline_prompt');
+              return;
+          }
+          setAppState('offline_prompt');
+          return;
       }
 
       const user = await supabaseService.getUser();
@@ -134,38 +273,23 @@ export default function App() {
           ]) as ClinicData | null;
 
           if (cloudData) {
-            const merged = mergeDataWithLocalPrefs(cloudData);
-            setData(merged);
-            storageService.saveData(merged);
+            const currentLocal = storageService.loadData();
+            const cloudTS = cloudData.lastUpdated || 0;
+            const localTS = currentLocal?.lastUpdated || 0;
+            
+            if (cloudTS > localTS) {
+                const merged = mergeDataWithLocalPrefs(cloudData);
+                setData(merged);
+                storageService.saveData(merged);
+            } else if (localTS > cloudTS && localData.settings.isLoggedIn) {
+                await supabaseService.saveData(localData);
+            }
+            localStorage.setItem('dentro_last_online_sync', Date.now().toString());
           }
         } catch (e) {
           console.warn("Initial sync failed or timed out, proceeding with local data.", e);
         } finally {
-          const currentData = storageService.loadData();
-          if (currentData && currentData.clinicName) {
-            const savedProfileType = localStorage.getItem('dentro_profile_type');
-            const savedDocId = localStorage.getItem('dentro_active_profile');
-            const savedSecId = localStorage.getItem('dentro_active_secretary');
-
-            // NEW: Skip profile selection if a session already exists
-            if (savedProfileType === 'doctor' && savedDocId) {
-                setActiveDoctorId(savedDocId);
-                setAppState('app');
-            } else if (savedProfileType === 'secretary' && savedSecId) {
-                setActiveSecretaryId(savedSecId);
-                setAppState('app');
-                setCurrentView('patients');
-            } else if (savedProfileType === 'admin') {
-                setActiveDoctorId(null);
-                setActiveSecretaryId(null);
-                setAppState('app');
-            } else {
-                setAppState('profile_select');
-            }
-          } else {
-            setAppState('app');
-          }
-          setIsInitialLoading(false);
+          finalizeBoot();
         }
       };
 
@@ -175,7 +299,6 @@ export default function App() {
     initApp();
   }, []);
 
-  // Background Security Check (Once a day)
   useEffect(() => {
     if (appState !== 'app' && appState !== 'profile_select') return;
     if (!navigator.onLine) return;
@@ -187,10 +310,7 @@ export default function App() {
 
       if (!lastCheck || (now - parseInt(lastCheck)) > oneDay) {
         const { exists, error } = await supabaseService.checkAccountStatus();
-        
-        // If the account explicitly doesn't exist (deleted/inactive), and there was no network error
         if (!exists && !error) {
-          console.warn("Account deactivated or deleted. Forcing logout.");
           performFullLogout();
         } else if (!error) {
           localStorage.setItem('dentro_last_security_check', now.toString());
@@ -239,7 +359,7 @@ export default function App() {
   };
 
   const closeConfirm = () => setConfirmState(prev => ({ ...prev, isOpen: false }));
-  const currentLang = appState === 'landing' ? landingLang : deviceLang;
+  const currentLang = appState === 'landing' || appState === 'offline_prompt' ? (localStorage.getItem('dentro_device_lang') as Language || landingLang) : deviceLang;
   const t = LABELS[currentLang];
   const isRTL = currentLang === 'ar' || currentLang === 'ku';
 
@@ -268,7 +388,7 @@ export default function App() {
         setSelectedPatientId(event.state.patientId);
         if (event.state.patientTab) setPatientTab(event.state.patientTab);
         if (event.state.category) setSelectedCategory(event.state.category);
-        setShowNewPatientModal(false); setShowEditPatientModal(false); setShowAppointmentModal(false); setShowPaymentModal(false); setShowMemoModal(false); setShowRxModal(false); setShowSupplyModal(false); setShowExpenseModal(false); setShowAddMasterDrugModal(false); setShowLabOrderModal(false); setShowInventoryModal(false); setSidebarOpen(false); setConfirmState(prev => ({ ...prev, isOpen: false })); setGuestToConvert(null); setSelectedAppointment(null); setSelectedMemo(null); setSelectedSupply(null); setSelectedExpense(null); setSelectedLabOrder(null); setSelectedInventoryItem(null); setPrintingRx(null); setPrintingPayment(null); setPrintingAppointment(null); setPrintingDocument(null);
+        setShowNewPatientModal(false); setShowEditPatientModal(false); setShowAppointmentModal(false); setShowPaymentModal(false); setShowMemoModal(false); setShowRxModal(false); setShowSupplyModal(false); setShowExpenseModal(false); setShowAddMasterDrugModal(false); setShowLabOrderModal(false); setShowInventoryModal(false); setSidebarOpen(false); setConfirmState(prev => ({ ...prev, isOpen: false })); setGuestToConvert(null); setSelectedAppointment(null); setSelectedMemo(null); setSelectedSupply(null); setSelectedExpense(null); setSelectedLabOrder(null); setSelectedInventoryItem(null); setPrintingRx(null); setPrintingPayment(null); setPrintingAppointment(null); setPrintingDocument(null); setPrintingExamination(null);
       }
     };
     window.history.pushState(null, '', window.location.href);
@@ -281,53 +401,30 @@ export default function App() {
     window.history.pushState({ view: currentView, patientId: selectedPatientId, patientTab: patientTab, category: selectedCategory, calendarView: calendarView, date: currentDate.toISOString() }, '');
   }, [currentView, selectedPatientId, patientTab, selectedCategory, calendarView, currentDate, appState]);
 
-  const handleManualSync = async (force: boolean = false) => {
-      if (!navigator.onLine || !data.settings.isLoggedIn || (syncStatus === 'syncing' && !force)) return;
-      setSyncStatus('syncing');
-      try {
-          const cloudData = await supabaseService.loadData();
-          if (cloudData) {
-              const localData = storageService.loadData();
-              if ((cloudData.lastUpdated || 0) > (localData?.lastUpdated || 0)) {
-                  const merged = mergeDataWithLocalPrefs(cloudData);
-                  setData(merged); storageService.saveData(merged); setSyncStatus('synced'); return true;
-              } else { setSyncStatus('synced'); return true; }
-          }
-          setSyncStatus('synced'); return true;
-      } catch (e) { setSyncStatus('error'); return false; }
-  };
-
-  const forceSyncToCloud = async (overrideData?: ClinicData) => {
-      const dataToSave = overrideData || data;
-      if (!navigator.onLine || !dataToSave.settings.isLoggedIn) return;
-      setSyncStatus('syncing');
-      try {
-          await supabaseService.saveData(dataToSave); setSyncStatus('synced');
-          setData(prev => ({ ...prev, lastSynced: new Date().toISOString() }));
-      } catch (e) { setSyncStatus('error'); }
-  };
-
   useEffect(() => {
       if (!data.settings.isLoggedIn || !navigator.onLine || isInitialLoading) return;
       const pollInterval = setInterval(() => handleManualSync(), 60000); 
       const onFocus = () => handleManualSync();
       window.addEventListener('focus', onFocus);
       return () => { clearInterval(pollInterval); window.removeEventListener('focus', onFocus); };
-  }, [data.settings.isLoggedIn, data.lastUpdated, isInitialLoading]);
+  }, [data.settings.isLoggedIn, isInitialLoading]);
 
   useEffect(() => {
     if (!data.settings.isLoggedIn || isInitialLoading) return;
     const timer = setTimeout(async () => {
-        storageService.saveData(data);
         if (navigator.onLine) {
-            setSyncStatus('syncing');
-            try { await supabaseService.saveData(data); setSyncStatus('synced'); } catch (e) { setSyncStatus('error'); }
+            handleManualSync(); 
         } else setSyncStatus('offline');
     }, 2000); 
     return () => clearTimeout(timer);
   }, [data, isInitialLoading]);
 
-  const handleInstallApp = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; };
+  const handleInstallApp = async () => { 
+    if (!deferredPrompt) return; 
+    deferredPrompt.prompt(); 
+    await deferredPrompt.userChoice; 
+    setDeferredPrompt(null);
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
       e.preventDefault(); setAuthLoading(true); setAuthError('');
@@ -339,6 +436,7 @@ export default function App() {
                 const newData = mergeDataWithLocalPrefs(cloudData); newData.settings.isLoggedIn = true;
                 setData(newData); storageService.saveData(newData); setIsInitialLoading(false); 
                 const existingLang = localStorage.getItem('dentro_device_lang'); if (!existingLang) { setDeviceLang(landingLang); localStorage.setItem('dentro_device_lang', landingLang); } else setDeviceLang(existingLang as Language);
+                localStorage.setItem('dentro_last_online_sync', Date.now().toString());
                 if (cloudData.clinicName) setAppState('profile_select'); else { setOnboardingStep(0); setAppState('app'); }
               }
           }
@@ -347,36 +445,39 @@ export default function App() {
 
   const handleProfileSelection = (type: 'admin' | 'doctor' | 'secretary', id?: string) => {
       if (type === 'admin') { 
-          setActiveDoctorId(null); 
-          setActiveSecretaryId(null); 
-          localStorage.setItem('dentro_profile_type', 'admin'); 
-          localStorage.removeItem('dentro_active_profile'); 
-          localStorage.removeItem('dentro_active_secretary'); 
+          setActiveDoctorId(null); setActiveSecretaryId(null); 
+          localStorage.setItem('dentro_profile_type', 'admin'); localStorage.removeItem('dentro_active_profile'); localStorage.removeItem('dentro_active_secretary'); 
           setAppState('app'); 
       }
       else if (type === 'doctor' && id) { 
-          setActiveDoctorId(id); 
-          setActiveSecretaryId(null); 
-          localStorage.setItem('dentro_profile_type', 'doctor'); 
-          localStorage.setItem('dentro_active_profile', id); 
-          localStorage.removeItem('dentro_active_secretary'); 
+          setActiveDoctorId(id); setActiveSecretaryId(null); 
+          localStorage.setItem('dentro_profile_type', 'doctor'); localStorage.setItem('dentro_active_profile', id); localStorage.removeItem('dentro_active_secretary'); 
           setAppState('app'); 
       }
       else if (type === 'secretary' && id) { 
-          setActiveSecretaryId(id); 
-          setActiveDoctorId(null); 
-          localStorage.setItem('dentro_profile_type', 'secretary'); 
-          localStorage.setItem('dentro_active_secretary', id); 
-          localStorage.removeItem('dentro_active_profile'); 
-          setAppState('app'); 
-          setCurrentView('patients'); 
+          setActiveSecretaryId(id); setActiveDoctorId(null); 
+          localStorage.setItem('dentro_profile_type', 'secretary'); localStorage.setItem('dentro_active_secretary', id); localStorage.removeItem('dentro_active_profile'); 
+          setAppState('app'); setCurrentView('patients'); 
       }
   };
 
   const handleClinicNameSubmit = (name: string) => { updateLocalData(prev => ({ ...prev, clinicName: name })); setAppState('profile_select'); };
   const handleAddDoctorSetup = (name: string) => { if(!name.trim()) return; const newDoc: Doctor = { id: Date.now().toString(), name }; updateLocalData(prev => ({ ...prev, doctors: [...prev.doctors, newDoc] })); };
   const handleAddDoctorFull = (name: string, username?: string, password?: string) => { if(!name.trim()) return; const newDoc: Doctor = { id: Date.now().toString(), name, username, password }; updateLocalData(prev => ({ ...prev, doctors: [...prev.doctors, newDoc] })); };
-  const handleUpdateDoctor = (id: string, updates: Partial<Doctor>) => updateLocalData(prev => ({ ...prev, doctors: prev.doctors.map(d => d.id === id ? { ...d, ...updates } : d) }));
+  
+  const handleUpdateDoctor = (id: string, updates: Partial<Doctor>, forceLogout: boolean = false) => {
+    updateLocalData(prev => ({ 
+        ...prev, 
+        doctors: prev.doctors.map(d => d.id === id ? { ...d, ...updates } : d) 
+    }));
+    if (forceLogout && (activeDoctorId === id)) {
+        setActiveDoctorId(null);
+        localStorage.removeItem('dentro_profile_type');
+        localStorage.removeItem('dentro_active_profile');
+        setAppState('profile_select');
+    }
+  };
+
   const handleDeleteDoctor = (id: string, deletePatients: boolean = false) => updateLocalData(prev => ({ ...prev, doctors: prev.doctors.filter(d => d.id !== id), patients: deletePatients ? prev.patients.filter(p => p.doctorId !== id) : prev.patients }));
   const handleAddSecretary = (name: string, username: string, password?: string) => { if (!name.trim()) return; if (data.secretaries.length >= 4) { alert(t.maxSecretaries); return; } const newSec: Secretary = { id: Date.now().toString(), name, username, password: password || '123456' }; updateLocalData(prev => ({ ...prev, secretaries: [...(prev.secretaries || []), newSec] })); };
   const handleDeleteSecretary = (id: string) => updateLocalData(prev => ({ ...prev, secretaries: (prev.secretaries || []).filter(s => s.id !== id) }));
@@ -384,57 +485,32 @@ export default function App() {
   const performFullLogout = async () => { 
     await supabaseService.signOut(); 
     const newData = { ...data, settings: { ...data.settings, isLoggedIn: false }, lastUpdated: Date.now() }; 
-    setData(newData); 
-    storageService.saveData(newData); 
-    setLoginEmail(''); 
-    setLoginPassword(''); 
-    localStorage.clear(); // Clear all local preferences too on force security logout
+    setData(newData); storageService.saveData(newData); 
+    setLoginEmail(''); setLoginPassword(''); localStorage.clear();
     setAppState('landing'); 
   };
 
   const handleLogout = async () => { 
-      // This logout takes the user to the profile selector to switch accounts
       if (activeDoctorId || activeSecretaryId || (!activeDoctorId && !activeSecretaryId && data.clinicName)) { 
-          setActiveDoctorId(null); 
-          setActiveSecretaryId(null); 
-          localStorage.removeItem('dentro_profile_type'); 
-          localStorage.removeItem('dentro_active_profile'); 
-          localStorage.removeItem('dentro_active_secretary'); 
-          setAppState('profile_select'); 
-          return; 
-      } 
-      await performFullLogout(); 
+          setActiveDoctorId(null); setActiveSecretaryId(null); 
+          localStorage.removeItem('dentro_profile_type'); localStorage.removeItem('dentro_active_profile'); localStorage.removeItem('dentro_active_secretary'); 
+          setAppState('profile_select'); return; 
+      } await performFullLogout(); 
   };
 
   const handleImportData = async (e: React.ChangeEvent<HTMLInputElement>, mode: 'merge' | 'replace') => {
     if (e.target.files?.[0]) {
       const imported = await storageService.importBackup(e.target.files[0]);
       if (imported) {
-        if (mode === 'replace') {
-            imported.settings.isLoggedIn = true; imported.lastUpdated = Date.now();
-            const merged = mergeDataWithLocalPrefs(imported);
-            setData(merged); storageService.saveData(merged);
-        } else {
-            setData(prev => {
-                const existingPatientIds = new Set(prev.patients.map(p => p.id));
-                const newPatients = imported.patients.filter(p => !existingPatientIds.has(p.id));
-                const next = {
-                    ...prev,
-                    patients: [...prev.patients, ...newPatients],
-                    lastUpdated: Date.now()
-                };
-                storageService.saveData(next);
-                return next;
-            });
-        }
-        alert(isRTL ? "تمت العملية بنجاح" : "Process completed successfully!");
-        setActiveDoctorId(null); setActiveSecretaryId(null); setAppState('profile_select'); 
+        if (mode === 'replace') { imported.settings.isLoggedIn = true; imported.lastUpdated = Date.now(); const merged = mergeDataWithLocalPrefs(imported); setData(merged); storageService.saveData(merged); }
+        else { setData(prev => { const existingPatientIds = new Set(prev.patients.map(p => p.id)); const newPatients = imported.patients.filter(p => !existingPatientIds.has(p.id)); const next = { ...prev, patients: [...prev.patients, ...newPatients], lastUpdated: Date.now() }; storageService.saveData(next); return next; }); }
+        alert(isRTL ? "تمت العملية بنجاح" : "Process completed successfully!"); setActiveDoctorId(null); setActiveSecretaryId(null); setAppState('profile_select'); 
       }
     }
   };
 
   const handleAddPatient = (patientData: any) => {
-    const newPatient: Patient = { id: Date.now().toString(), name: patientData.name || 'New Patient', phone: patientData.phone || '', phoneCode: patientData.phoneCode || data.settings.defaultCountryCode, age: parseInt(patientData.age) || 0, gender: patientData.gender || 'male', category: patientData.category || 'other', medicalHistory: patientData.medicalHistory || '', status: 'pending', doctorId: activeDoctorId || patientData.doctorId || (data.doctors[0]?.id || ''), createdAt: new Date().toISOString(), teeth: {}, appointments: [], payments: [], notes: '', address: patientData.address, rootCanals: [], treatmentSessions: [], prescriptions: [], images: [] };
+    const newPatient: Patient = { id: Date.now().toString(), name: patientData.name || 'New Patient', phone: patientData.phone || '', phoneCode: patientData.phoneCode || data.settings.defaultCountryCode, age: parseInt(patientData.age) || 0, gender: patientData.gender || 'male', category: patientData.category || 'other', medicalHistory: patientData.medicalHistory || '', status: 'pending', doctorId: activeDoctorId || patientData.doctorId || (data.doctors[0]?.id || ''), createdAt: new Date().toISOString(), teeth: {}, appointments: [], payments: [], examinations: [], notes: '', address: patientData.address, rootCanals: [], treatmentSessions: [], prescriptions: [], images: [] };
     if (guestToConvert) { newPatient.appointments.push({ ...guestToConvert, patientId: newPatient.id, patientName: newPatient.name }); updateLocalData(prev => ({ ...prev, patients: [newPatient, ...prev.patients], guestAppointments: (prev.guestAppointments || []).filter(a => a.id !== guestToConvert.id), settings: { ...prev.settings, defaultCountryCode: newPatient.phoneCode || prev.settings.defaultCountryCode } })); setGuestToConvert(null); }
     else updateLocalData(prev => ({ ...prev, patients: [newPatient, ...prev.patients], settings: { ...prev.settings, defaultCountryCode: newPatient.phoneCode || prev.settings.defaultCountryCode } }));
     setShowNewPatientModal(false); return newPatient;
@@ -442,8 +518,27 @@ export default function App() {
 
   const updatePatient = (id: string, updates: Partial<Patient>, immediateSave: boolean = false) => {
     setData(prev => {
-        const next = { ...prev, lastUpdated: isInitialLoading ? prev.lastUpdated : Date.now(), patients: prev.patients.map(p => p.id === id ? { ...p, ...updates } : p) };
-        if (immediateSave && !isInitialLoading) forceSyncToCloud(next);
+        const nextPatients = prev.patients.map(p => {
+            if (p.id === id) {
+                const updatedPatient = { ...p, ...updates };
+                if (updates.name && updates.name !== p.name) {
+                    updatedPatient.appointments = updatedPatient.appointments.map(a => ({
+                        ...a,
+                        patientName: updates.name as string
+                    }));
+                }
+                return updatedPatient;
+            }
+            return p;
+        });
+
+        const next = { 
+            ...prev, 
+            lastUpdated: Date.now(), 
+            patients: nextPatients 
+        };
+        storageService.saveData(next);
+        if (immediateSave && !isInitialLoading) handleManualSync(); 
         return next;
     });
   };
@@ -479,19 +574,98 @@ export default function App() {
   const handleAddMedToRx = () => { const nameToUse = medSearch || medForm.name; if(!nameToUse) return; const newMed: Medication = { id: Date.now().toString(), name: nameToUse, dose: medForm.dose || '', frequency: medForm.frequency || '', form: medForm.form || '', notes: medForm.notes || '' }; setNewRxMeds([...newRxMeds, newMed]); setMedForm({}); setMedSearch(''); };
   const handleRemoveMedFromRx = (index: number) => { const list = [...newRxMeds]; list.splice(index, 1); setNewRxMeds(list); };
   const handleSaveRx = () => { if (newRxMeds.length === 0) return; const patient = data.patients.find(p => p.id === selectedPatientId); if(patient) { const newRx: Prescription = { id: Date.now().toString(), date: new Date().toISOString(), medications: newRxMeds }; updatePatient(selectedPatientId!, { prescriptions: [newRx, ...patient.prescriptions] }); } setShowRxModal(false); setNewRxMeds([]); };
-  const handleGoogleDriveLink = async () => { try { const accessToken = await googleDriveService.login(); if (accessToken) { const rootId = await googleDriveService.ensureRootFolder(); updateLocalData(prev => ({ ...prev, settings: { ...prev.settings, googleDriveLinked: true, googleDriveRootId: rootId } })); alert(isRTL ? "تم ربط جوجل درايف بنجاح" : "Google Drive linked successfully!"); } } catch (e: any) { if (e?.error === 'popup_blocked_by_browser') alert(isRTL ? "يرجى السماح بالنوافذ المنبثقة (Popups) في متصفحك لإتمام عملية الربط." : "Please allow popups in your browser to complete the connection."); else alert(t.errorDrive || "Failed to connect. Please try again."); } };
+  const handleGoogleDriveLink = async () => { try { const accessToken = await googleDriveService.login(); if (accessToken) { const rootId = await googleDriveService.ensureRootFolder(); updateLocalData(prev => ({ ...prev, settings: { ...prev.settings, googleDriveLinked: true, googleDriveRootId: rootId } })); alert(isRTL ? "تم ربط جوجل درايف بنجاح" : "Google Drive linked successfully!"); } } catch (e: any) { alert(t.errorDrive || "Failed to connect. Please try again."); } };
   
-  const handleQuickBook = (patientId: string) => {
-    setApptPatientId(patientId);
-    setSelectedAppointment(null);
-    setAppointmentMode('existing');
-    setShowAppointmentModal(true);
-  };
+  const handleQuickBook = (patientId: string) => { setApptPatientId(patientId); setSelectedAppointment(null); setAppointmentMode('existing'); setShowAppointmentModal(true); };
 
-  const allAppointments = [ ...data.patients.flatMap(p => p.appointments.map(a => ({...a, patient: p}))), ...(data.guestAppointments || []).map(a => ({...a, patient: null as Patient | null})) ];
+  const allAppointments = [ 
+    ...data.patients.flatMap(p => p.appointments.map(a => ({
+        ...a, 
+        patientName: p.name, 
+        patient: p
+    }))), 
+    ...(data.guestAppointments || []).map(a => ({...a, patient: null as Patient | null})) 
+  ];
   const activePatient = selectedPatientId ? data.patients.find(p => p.id === selectedPatientId) : null;
 
   if (appState === 'loading' || isInitialLoading) { return ( <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 animate-fade-in"> <div className="flex items-center justify-center mb-6 animate-scale-up"> <Logo className="w-24 h-24" /> </div> <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-secondary-600 dark:from-white dark:to-gray-300 mb-2">Dentro</h1> <p className="text-gray-400 dark:text-gray-500 text-sm font-medium tracking-wide uppercase mb-8">Clinic Management System</p> {isInitialLoading && data.settings.isLoggedIn && ( <div className="flex flex-col items-center gap-4 mb-6"> <div className="flex items-center gap-3 bg-white dark:bg-gray-800 px-6 py-3 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 animate-fade-in"> <RefreshCw size={18} className="animate-spin text-primary-600" /> <span className="text-sm font-bold text-gray-700 dark:text-gray-300 font-cairo"> {t.syncOnLoad} </span> </div> </div> )} <div className="w-48 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden"> <div className="h-full bg-primary-500 w-1/2 animate-[pulse_1s_ease-in-out_infinite] rounded-full"></div> </div> </div> ) }
+  
+  if (appState === 'offline_prompt') {
+      return (
+          <div className={`min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 p-6 ${isRTL ? 'font-cairo' : 'font-sans'}`} dir={isRTL ? 'rtl' : 'ltr'}>
+              <div className="bg-white dark:bg-gray-800 p-8 md:p-12 rounded-[3rem] shadow-2xl border border-gray-100 dark:border-gray-700 max-w-md w-full text-center animate-scale-up">
+                  {offlineStatus === 'login_required' ? (
+                      <div className="animate-fade-in">
+                          <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                              <LogIn size={40} />
+                          </div>
+                          <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-4">{t.loginRequiredOffline}</h2>
+                          <p className="text-gray-500 dark:text-gray-400 font-bold leading-relaxed mb-8">
+                              {t.loginRequiredOfflineDesc}
+                          </p>
+                          <button 
+                              onClick={() => window.location.reload()}
+                              className="w-full py-4 bg-primary-600 text-white rounded-2xl font-black shadow-xl shadow-primary-500/30 hover:bg-primary-700 transition transform active:scale-95 flex items-center justify-center gap-2"
+                          >
+                              <RefreshCw size={20} />
+                              <span>{isRTL ? "إعادة المحاولة (اتصال)" : "Retry (Online)"}</span>
+                          </button>
+                      </div>
+                  ) : offlineStatus === 'blocked' ? (
+                      <div className="animate-fade-in">
+                          <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 text-red-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                              <AlertCircle size={40} />
+                          </div>
+                          <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-4">{t.offlineAccessDenied}</h2>
+                          <p className="text-gray-500 dark:text-gray-400 font-bold leading-relaxed mb-8">
+                              {t.offlineLimitExceeded}
+                          </p>
+                          <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 mb-8">
+                              <span className="text-[10px] font-black uppercase text-gray-400 block mb-1">{t.lastSyncLabel}</span>
+                              <span className="font-bold text-gray-700 dark:text-gray-200">
+                                  {localStorage.getItem('dentro_last_online_sync') 
+                                    ? new Date(parseInt(localStorage.getItem('dentro_last_online_sync')!)).toLocaleDateString(isRTL ? 'ar-EG' : 'en-US', { dateStyle: 'full' })
+                                    : '---'}
+                              </span>
+                          </div>
+                          <button 
+                              onClick={() => window.location.reload()}
+                              className="w-full py-4 bg-primary-600 text-white rounded-2xl font-black shadow-xl shadow-primary-500/30 hover:bg-primary-700 transition transform active:scale-95"
+                          >
+                              {t.reconnectNow}
+                          </button>
+                      </div>
+                  ) : (
+                      <div className="animate-fade-in">
+                          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 text-blue-600 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner">
+                              <WifiOff size={40} />
+                          </div>
+                          <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-4">{t.offlineTitle}</h2>
+                          <p className="text-gray-500 dark:text-gray-400 font-bold leading-relaxed mb-10">
+                              {t.offlineDesc}
+                          </p>
+                          <div className="flex flex-col gap-3">
+                              <button 
+                                  onClick={handleContinueOffline}
+                                  className="w-full py-4 bg-primary-600 text-white rounded-2xl font-black shadow-xl shadow-primary-500/30 hover:bg-primary-700 transition transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-2"
+                              >
+                                  <span>{t.continueOffline}</span>
+                                  <ArrowRight size={20} className="rtl:rotate-180" />
+                              </button>
+                              <button 
+                                  onClick={() => window.location.reload()}
+                                  className="w-full py-4 bg-gray-50 dark:bg-gray-700 text-gray-500 dark:text-gray-300 rounded-2xl font-bold hover:bg-gray-100 transition"
+                              >
+                                  {isRTL ? "إعادة المحاولة" : "Retry Connection"}
+                              </button>
+                          </div>
+                      </div>
+                  )}
+              </div>
+          </div>
+      );
+  }
+
   if (appState === 'landing') return <LandingPage setAppState={setAppState} landingLang={landingLang} setLandingLang={setLandingLang} isRTL={isRTL} />;
   if (appState === 'auth') return <AuthScreen t={t} loginEmail={loginEmail} setLoginEmail={setLoginEmail} loginPassword={loginPassword} setLoginPassword={setLoginPassword} authLoading={authLoading} authError={authError} handleAuth={handleAuth} setAppState={setAppState} />;
   if (appState === 'profile_select') return <ProfileSelector t={t} data={data} loginPassword={loginPassword} currentLang={currentLang} isRTL={isRTL} onSelectAdmin={(pass) => { handleProfileSelection('admin'); }} onSelectDoctor={(id, pass) => { handleProfileSelection('doctor', id); }} onSelectSecretary={(id, pass) => { handleProfileSelection('secretary', id); }} onLogout={performFullLogout} syncStatus={syncStatus} />;
@@ -499,6 +673,23 @@ export default function App() {
 
   return (
     <div className={`min-h-screen flex bg-page-bg font-${isRTL ? 'cairo' : 'sans'} leading-relaxed overflow-hidden transition-colors duration-300`} dir={isRTL ? 'rtl' : 'ltr'}>
+      
+      {/* PWA Update Banner */}
+      {deferredPrompt && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md animate-bounce">
+              <div className="bg-primary-600 text-white p-4 rounded-3xl shadow-2xl flex items-center justify-between border-2 border-white/20">
+                  <div className="flex items-center gap-3">
+                      <Download size={24} />
+                      <div className="text-start">
+                          <p className="text-xs font-black uppercase tracking-tighter opacity-80">{isRTL ? 'تثبيت التطبيق' : 'Install App'}</p>
+                          <p className="text-sm font-bold leading-tight">{isRTL ? 'استخدمه بدون إنترنت وبسرعة أكبر' : 'Use offline with faster performance'}</p>
+                      </div>
+                  </div>
+                  <button onClick={handleInstallApp} className="bg-white text-primary-600 px-4 py-2 rounded-xl font-black text-xs shadow-sm hover:scale-105 transition-transform active:scale-95">{isRTL ? 'تثبيت' : 'Install'}</button>
+              </div>
+          </div>
+      )}
+
       <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title} message={confirmState.message} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} lang={currentLang} confirmLabel={confirmState.confirmLabel} cancelLabel={confirmState.cancelLabel} />
       <Sidebar t={t} data={data} currentView={currentView} setCurrentView={setCurrentView} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} setSelectedPatientId={setSelectedPatientId} handleLogout={handleLogout} isRTL={isRTL} isSecretary={isSecretary} handleManualSync={handleManualSync} syncStatus={syncStatus} />
       <main className="flex-1 h-screen overflow-y-auto custom-scrollbar relative">
@@ -507,8 +698,8 @@ export default function App() {
          <div className="p-4 md:p-8 pb-20 max-w-7xl mx-auto">
              {currentView === 'dashboard' && !isSecretary && ( <DashboardView t={t} data={data} allAppointments={allAppointments} setData={setData} activeDoctorId={activeDoctorId} setSelectedPatientId={setSelectedPatientId} setCurrentView={setCurrentView} setPatientTab={setPatientTab} /> )}
              {currentView === 'patients' && !selectedPatientId && ( <PatientsView t={t} data={filteredData} isRTL={isRTL} currentLang={currentLang} setSelectedPatientId={setSelectedPatientId} setPatientTab={setPatientTab} setCurrentView={setCurrentView} setShowNewPatientModal={setShowNewPatientModal} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onAddAppointment={handleQuickBook} /> )}
-             {currentView === 'patients' && selectedPatientId && activePatient && ( <PatientDetails t={t} data={data} setData={setData} activePatient={activePatient} patientTab={patientTab} setPatientTab={setPatientTab} setSelectedPatientId={setSelectedPatientId} currentLang={currentLang} isRTL={isRTL} updatePatient={updatePatient} handleDeletePatient={handleDeletePatient} handleUpdateTooth={handleUpdateTooth} handleUpdateToothSurface={handleUpdateToothSurface} handleUpdateToothNote={handleUpdateToothNote} handleUpdateHead={handleUpdateHead} handleUpdateBody={handleUpdateBody} handleAddRCT={handleAddRCT} handleDeleteRCT={handleDeleteRCT} handleDeleteAppointment={handleDeleteAppointment} handleUpdateAppointmentStatus={handleUpdateAppointmentStatus} handleDeleteRx={handleDeleteRx} setPrintingRx={setPrintingRx} setPrintingPayment={setPrintingPayment} setPrintingAppointment={setPrintingAppointment} handleRxFileUpload={handleRxFileUpload} setShowEditPatientModal={setShowEditPatientModal} setShowAppointmentModal={setShowAppointmentModal} setSelectedAppointment={setSelectedAppointment} setAppointmentMode={setAppointmentMode} setShowPaymentModal={setShowPaymentModal} setPaymentType={setPaymentType} setShowRxModal={setShowRxModal} setShowAddMasterDrugModal={setShowAddMasterDrugModal} openConfirm={openConfirm} setPrintingDocument={setPrintingDocument} isSecretary={isSecretary} /> )}
-             {currentView === 'calendar' && ( <CalendarView t={t} data={data} currentLang={currentLang} isRTL={isRTL} calendarView={calendarView} setCalendarView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} filteredAppointments={allAppointments} setSelectedAppointment={setSelectedAppointment} setAppointmentMode={setAppointmentMode} setShowAppointmentModal={setShowAppointmentModal} handleUpdateAppointmentStatus={handleUpdateAppointmentStatus} handleDeleteAppointment={handleDeleteAppointment} setSelectedPatientId={setSelectedPatientId} setCurrentView={setCurrentView} setPatientTab={setPatientTab} setGuestToConvert={setGuestToConvert} setShowNewPatientModal={setShowNewPatientModal} openConfirm={openConfirm} setData={setData} /> )}
+             {currentView === 'patients' && selectedPatientId && activePatient && ( <PatientDetails t={t} data={data} setData={setData} activePatient={activePatient} patientTab={patientTab} setPatientTab={setPatientTab} setSelectedPatientId={setSelectedPatientId} currentLang={currentLang} isRTL={isRTL} updatePatient={updatePatient} handleDeletePatient={handleDeletePatient} handleUpdateTooth={handleUpdateTooth} handleUpdateToothSurface={handleUpdateToothSurface} handleUpdateToothNote={handleUpdateToothNote} handleUpdateHead={handleUpdateHead} handleUpdateBody={handleUpdateBody} handleAddRCT={handleAddRCT} handleDeleteRCT={handleDeleteRCT} handleDeleteAppointment={handleDeleteAppointment} handleUpdateAppointmentStatus={handleUpdateAppointmentStatus} handleDeleteRx={handleDeleteRx} setPrintingRx={setPrintingRx} setPrintingPayment={setPrintingPayment} setPrintingAppointment={setPrintingAppointment} setPrintingExamination={setPrintingExamination} handleRxFileUpload={handleRxFileUpload} setShowEditPatientModal={setShowEditPatientModal} setShowAppointmentModal={setShowAppointmentModal} setSelectedAppointment={setSelectedAppointment} setAppointmentMode={setAppointmentMode} setShowPaymentModal={setShowPaymentModal} setPaymentType={setPaymentType} setShowRxModal={setShowRxModal} setShowAddMasterDrugModal={setShowAddMasterDrugModal} openConfirm={openConfirm} setPrintingDocument={setPrintingDocument} isSecretary={isSecretary} /> )}
+             {currentView === 'calendar' && ( <CalendarView t={t} data={data} currentLang={currentLang} isRTL={isRTL} calendarView={calendarView} setCalendarView={setCalendarView} currentDate={currentDate} setCurrentDate={setCurrentDate} filteredAppointments={allAppointments} setSelectedAppointment={setSelectedAppointment} setAppointmentMode={setAppointmentMode} setShowAppointmentModal={setShowAppointmentModal} handleUpdateAppointmentStatus={handleUpdateAppointmentStatus} handleDeleteAppointment={handleDeleteAppointment} setSelectedPatientId={setSelectedPatientId} setCurrentView={setCurrentView} setPatientTab={setPatientTab} setGuestToConvert={setGuestToConvert} setShowNewPatientModal={setShowNewPatientModal} openConfirm={openConfirm} setData={setData} activeDoctorId={activeDoctorId} iisSecretary={isSecretary} /> )}
              {currentView === 'memos' && ( <MemosView t={t} data={data} setSelectedMemo={setSelectedMemo} setShowMemoModal={setShowMemoModal} setMemoType={setMemoType} setTempTodos={setTempTodos} handleDeleteMemo={handleDeleteMemo} currentLang={currentLang} openConfirm={openConfirm} /> )}
              {currentView === 'purchases' && ( <PurchasesView t={t} data={data} setSelectedSupply={setSelectedSupply} setShowSupplyModal={setShowSupplyModal} handleConvertToExpense={handleConvertToExpense} handleDeleteSupply={handleDeleteSupply} openConfirm={openConfirm} /> )}
              {currentView === 'inventory' && ( <InventoryView t={t} data={data} setSelectedInventoryItem={setSelectedInventoryItem} setShowInventoryModal={setShowInventoryModal} handleDeleteInventoryItem={handleDeleteInventoryItem} openConfirm={openConfirm} /> )}
@@ -517,23 +708,10 @@ export default function App() {
              {currentView === 'settings' && ( <SettingsView t={t} data={data} setData={setData} handleAddDoctor={handleAddDoctorFull} handleUpdateDoctor={handleUpdateDoctor} handleDeleteDoctor={handleDeleteDoctor} handleAddSecretary={handleAddSecretary} handleDeleteSecretary={handleDeleteSecretary} handleRxFileUpload={handleRxFileUpload} handleImportData={handleImportData} syncStatus={syncStatus} deferredPrompt={deferredPrompt} handleInstallApp={handleInstallApp} openConfirm={openConfirm} currentLang={currentLang} setDeviceLang={setDeviceLang} currentTheme={currentThemeMode} setLocalTheme={toggleLocalTheme} activeThemeId={activeThemeId} setActiveThemeId={setActiveThemeId} activeDoctorId={activeDoctorId} activeSecretaryId={activeSecretaryId} deviceScale={deviceScale} setDeviceScale={setDeviceScale} onLinkDrive={handleGoogleDriveLink} /> )}
          </div>
       </main>
-      <PrintLayouts t={t} data={data} activePatient={activePatient} printingRx={printingRx} setPrintingRx={setPrintingRx} printingPayment={printingPayment} setPrintingPayment={setPrintingPayment} printingAppointment={printingAppointment} setPrintingAppointment={setPrintingAppointment} printingDocument={printingDocument} setPrintingDocument={setPrintingDocument} currentLang={currentLang} isRTL={isRTL} />
+      <PrintLayouts t={t} data={data} activePatient={activePatient} printingRx={printingRx} setPrintingRx={setPrintingRx} printingPayment={printingPayment} setPrintingPayment={setPrintingPayment} printingAppointment={printingAppointment} setPrintingAppointment={setPrintingAppointment} printingDocument={printingDocument} setPrintingDocument={setPrintingDocument} printingExamination={printingExamination} setPrintingExamination={setPrintingExamination} currentLang={currentLang} isRTL={isRTL} />
       <PatientModal show={showNewPatientModal || showEditPatientModal} onClose={() => { setShowNewPatientModal(false); setShowEditPatientModal(false); }} t={t} isRTL={isRTL} currentLang={currentLang} data={activeDoctorId ? filteredData : data} handleAddPatient={handleAddPatient} updatePatient={updatePatient} guestToConvert={guestToConvert} activePatient={showEditPatientModal ? activePatient : null} setSelectedPatientId={setSelectedPatientId} setCurrentView={setCurrentView} setPatientTab={setPatientTab} activeDoctorId={activeDoctorId} />
-      <PaymentModal show={showPaymentModal} onClose={() => setShowPaymentModal(false)} t={t} activePatient={activePatient} paymentType={paymentType} data={data} handleAddPatient={handleAddPatient} currentLang={currentLang} />
-      <AppointmentModal 
-        show={showAppointmentModal} 
-        onClose={() => { setShowAppointmentModal(false); setApptPatientId(null); }} 
-        t={t} 
-        selectedAppointment={selectedAppointment} 
-        appointmentMode={appointmentMode} 
-        setAppointmentMode={setAppointmentMode} 
-        selectedPatientId={apptPatientId || (selectedPatientId && currentView === 'patients' ? selectedPatientId : null)} 
-        data={activeDoctorId ? filteredData : data} 
-        currentDate={currentDate} 
-        handleAddAppointment={handleAddAppointment} 
-        isRTL={isRTL} 
-        currentLang={currentLang} 
-      />
+      <PaymentModal show={showPaymentModal} onClose={() => setShowPaymentModal(false)} t={t} activePatient={activePatient} paymentType={paymentType} data={data} handleSavePayment={handleAddPayment} currentLang={currentLang} />
+      <AppointmentModal show={showAppointmentModal} onClose={() => { setShowAppointmentModal(false); setApptPatientId(null); }} t={t} selectedAppointment={selectedAppointment} appointmentMode={appointmentMode} setAppointmentMode={setAppointmentMode} selectedPatientId={apptPatientId || (selectedPatientId && currentView === 'patients' ? selectedPatientId : null)} data={activeDoctorId ? filteredData : data} currentDate={currentDate} handleAddAppointment={handleAddAppointment} isRTL={isRTL} currentLang={currentLang} />
       <AddMasterDrugModal show={showAddMasterDrugModal} onClose={() => setShowAddMasterDrugModal(false)} t={t} data={data} handleManageMedications={handleManageMedications} handleDeleteMasterDrug={handleDeleteMasterDrug} currentLang={currentLang} openConfirm={openConfirm} />
       <MemoModal show={showMemoModal} onClose={() => setShowMemoModal(false)} t={t} selectedMemo={selectedMemo} memoType={memoType} setMemoType={setMemoType} tempTodos={tempTodos} setTempTodos={setTempTodos} handleSaveMemo={handleSaveMemo} currentLang={currentLang} />
       <SupplyModal show={showSupplyModal} onClose={() => setShowSupplyModal(false)} t={t} selectedSupply={selectedSupply} handleSaveSupply={handleSaveSupply} currentLang={currentLang} />

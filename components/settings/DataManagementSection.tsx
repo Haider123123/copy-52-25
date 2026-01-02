@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, FileUp, Download, AlertOctagon, Trash, Layout, RefreshCw, Smartphone, CheckCircle, Info } from 'lucide-react';
+import { Database, FileUp, Download, AlertOctagon, Trash, Layout, RefreshCw, Smartphone, CheckCircle, Info, ExternalLink } from 'lucide-react';
 
 interface DataManagementSectionProps {
   t: any;
@@ -34,6 +34,57 @@ export const DataManagementSection: React.FC<DataManagementSectionProps> = ({
             </div>
         </div>
 
+        {/* Permanent Install Section - Always Visible */}
+        <div id="install-section" className="bg-white dark:bg-gray-800 p-8 rounded-[3rem] shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-3 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-xl shadow-inner"><Smartphone size={24} /></div>
+                <h3 className="font-black text-gray-900 dark:text-white text-xl uppercase tracking-tight">{isRTL ? "تثبيت التطبيق على الجهاز" : "Install App on Device"}</h3>
+            </div>
+            
+            <div className="space-y-6">
+                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-bold">
+                    {isRTL 
+                        ? "قم بتثبيت Dentro كبرنامج مستقل ليعمل بسرعة أكبر وبدقة عالية، ولتتمكن من فتح ملفات المرضى حتى عند انقطاع الإنترنت كلياً." 
+                        : "Install Dentro as a standalone app for faster performance and to access patient records even when fully offline."}
+                </p>
+
+                {/* Main Action Button - Stays always visible */}
+                <div className="space-y-4">
+                    <button 
+                        onClick={handleInstallApp} 
+                        className="w-full flex items-center justify-center gap-3 py-5 bg-primary-600 text-white rounded-2xl font-black text-sm uppercase transition-all duration-300 hover:bg-primary-700 shadow-xl shadow-primary-500/30 active:scale-95"
+                    >
+                        <Download size={20} />
+                        <span>{deferredPrompt ? (isRTL ? "تثبيت الآن (متوفر)" : "Install Now") : (isRTL ? "تثبيت / إعادة تثبيت" : "Install / Reinstall")}</span>
+                    </button>
+
+                    <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col items-center text-center gap-2">
+                        <CheckCircle className="text-green-500" size={24} />
+                        <div className="text-xs font-black text-gray-700 dark:text-gray-200">
+                            {isRTL ? "التطبيق جاهز للعمل بدون إنترنت" : "Application is ready for offline work"}
+                        </div>
+                    </div>
+
+                    {/* Helpful Tips for Manual Install */}
+                    <div className="p-5 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-800/30">
+                        <div className="flex items-start gap-3 mb-4">
+                            <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
+                            <p className="text-xs text-blue-700 dark:text-blue-300 font-bold leading-relaxed">
+                                {isRTL 
+                                    ? "إذا كان الزر أعلاه لا يستجيب أو كنت تستخدم آيفون، اتبع الآتي:" 
+                                    : "If the button above is not responsive or you're using an iPhone, follow these steps:"}
+                            </p>
+                        </div>
+                        <ul className="space-y-2 text-[10px] md:text-xs text-blue-600/80 dark:text-blue-400/80 font-bold list-disc ps-5">
+                            <li>{isRTL ? "على iPhone: اضغط زر (Share) ثم اختر (Add to Home Screen)." : "On iPhone: Tap 'Share' button then choose 'Add to Home Screen'."}</li>
+                            <li>{isRTL ? "على Chrome: اضغط على النقاط الثلاث (⋮) ثم (Install App) أو (Add to Desktop)." : "On Chrome: Tap (⋮) then 'Install App' or 'Add to Desktop'."}</li>
+                            <li>{isRTL ? "تأكد من فتح التطبيق مرة واحدة على الأقل أثناء وجود الإنترنت ليتم تخزينه." : "Ensure you open the app at least once while online to allow caching."}</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         {/* Update App Files Section */}
         <div className="bg-white dark:bg-gray-800 p-8 rounded-[3rem] shadow-sm border border-gray-100 dark:border-gray-700">
             <div className="flex items-center gap-3 mb-6">
@@ -50,59 +101,6 @@ export const DataManagementSection: React.FC<DataManagementSectionProps> = ({
                 <RefreshCw size={20} />
                 <span>{t.reloadNow}</span>
             </button>
-        </div>
-
-        {/* Permanent Install Section - Added here as requested */}
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-[3rem] shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="p-3 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-xl shadow-inner"><Smartphone size={24} /></div>
-                <h3 className="font-black text-gray-900 dark:text-white text-xl uppercase tracking-tight">{isRTL ? "تثبيت التطبيق على الجهاز" : "Install App on Device"}</h3>
-            </div>
-            
-            <div className="space-y-6">
-                <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed font-bold">
-                    {isRTL 
-                        ? "قم بتثبيت Dentro كبرنامج مستقل ليعمل بسرعة أكبر وبدقة عالية، ولتتمكن من فتح ملفات المرضى حتى عند انقطاع الإنترنت." 
-                        : "Install Dentro as a standalone app for faster performance and to access patient records even without internet."}
-                </p>
-
-                {deferredPrompt ? (
-                    <button 
-                        onClick={handleInstallApp} 
-                        className="w-full flex items-center justify-center gap-3 py-5 bg-primary-600 text-white rounded-2xl font-black text-sm uppercase transition-all duration-300 hover:bg-primary-700 shadow-xl shadow-primary-500/30 active:scale-95 animate-pulse"
-                    >
-                        <Download size={20} />
-                        <span>{isRTL ? "تثبيت الآن (متوفر)" : "Install Now (Available)"}</span>
-                    </button>
-                ) : (
-                    <div className="space-y-4">
-                        <div className="p-5 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 flex flex-col items-center text-center gap-3">
-                            <CheckCircle className="text-green-500" size={32} />
-                            <div className="text-sm font-black text-gray-700 dark:text-gray-200">
-                                {isRTL ? "التطبيق جاهز للعمل أوفلاين" : "App is ready for offline use"}
-                            </div>
-                        </div>
-                        
-                        <div className="p-4 bg-blue-50 dark:bg-blue-900/10 rounded-2xl border border-blue-100 dark:border-blue-800/30 flex items-start gap-3">
-                            <Info size={18} className="text-blue-600 shrink-0 mt-0.5" />
-                            <p className="text-xs text-blue-700 dark:text-blue-300 font-bold leading-relaxed">
-                                {isRTL 
-                                    ? "إذا لم يظهر زر التثبيت، فقد يكون التطبيق مثبتاً بالفعل أو أنك لا تستخدم متصفح Chrome/Safari. يمكنك دائماً الضغط على 'إضافة إلى الشاشة الرئيسية' من إعدادات المتصفح." 
-                                    : "If the install button is missing, the app might be already installed or you are not using Chrome/Safari. You can always use 'Add to Home Screen' from browser settings."}
-                            </p>
-                        </div>
-
-                        {/* Force Show Button anyway but with different label if prompt is gone */}
-                        <button 
-                            onClick={handleInstallApp} 
-                            className="w-full flex items-center justify-center gap-3 py-5 bg-gray-100 dark:bg-gray-700 text-gray-400 rounded-2xl font-black text-sm uppercase transition-all"
-                        >
-                            <Download size={20} />
-                            <span>{isRTL ? "إعادة محاولة التثبيت" : "Retry Installation"}</span>
-                        </button>
-                    </div>
-                )}
-            </div>
         </div>
 
         <div className="bg-red-50 dark:bg-red-950/20 p-8 rounded-[3rem] border-2 border-red-100 dark:border-red-900/30 shadow-sm space-y-6">

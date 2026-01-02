@@ -275,6 +275,7 @@ export const ar = {
     editItem: "تعديل مادة",
     installApp: "تثبيت التطبيق",
     installDesc: "تثبيت على جهازك",
+    installManualInfo: "إذا لم تظهر نافذة التثبيت التلقائية، يمكنك التثبيت يدوياً من إعدادات المتصفح (Install/Add to Home Screen).",
     syncing: "جاري المزامنة...",
     synced: "تمت المزامنة",
     syncError: "خطأ في المزامنة",

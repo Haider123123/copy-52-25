@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Database, FileUp, Download, AlertOctagon, Trash, Layout, RefreshCw } from 'lucide-react';
 
@@ -61,11 +62,18 @@ export const DataManagementSection: React.FC<DataManagementSectionProps> = ({
             <button onClick={handleResetLocalData} className="w-full flex items-center justify-center gap-3 py-5 bg-white dark:bg-red-900/20 text-red-600 border-2 border-red-200 dark:border-red-800 rounded-2xl font-black text-sm uppercase transition-all duration-300 hover:bg-red-600 hover:text-white shadow-sm active:scale-95"><Trash size={20} /><span>{t.resetLocalData}</span></button>
         </div>
 
-        {deferredPrompt && (
-            <div className="pt-4 px-2">
-                <button onClick={handleInstallApp} className="w-full py-5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black rounded-[2rem] shadow-2xl transition-all flex items-center justify-center gap-3 hover:-translate-y-1 active:scale-95"><Layout size={24} /><span className="text-lg">{t.installApp}</span></button>
-            </div>
-        )}
+        <div className="pt-4 px-2">
+            <button 
+                onClick={handleInstallApp} 
+                className={`w-full py-5 font-black rounded-[2rem] shadow-2xl transition-all flex flex-col items-center justify-center gap-2 hover:-translate-y-1 active:scale-95 ${deferredPrompt ? 'bg-primary-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300'}`}
+            >
+                <div className="flex items-center gap-3">
+                    <Layout size={24} />
+                    <span className="text-lg">{t.installApp}</span>
+                </div>
+                {!deferredPrompt && <span className="text-[10px] opacity-60 max-w-[250px] leading-tight font-bold">{isRTL ? "التطبيق مثبت أو يتطلب تثبيتاً يدوياً من قائمة المتصفح" : "App already installed or requires manual browser install"}</span>}
+            </button>
+        </div>
     </div>
   );
 };

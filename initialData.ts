@@ -12,11 +12,33 @@ export const INITIAL_DATA: ClinicData = {
   inventory: [],
   expenses: [],
   medications: [
-    { id: '1', name: 'Amoxicillin', dose: '500mg', frequency: '3 times daily', form: 'cap' },
-    { id: '2', name: 'Ibuprofen', dose: '400mg', frequency: 'When needed', form: 'tab', notes: 'After food' },
-    { id: '3', name: 'Paracetamol', dose: '500mg', frequency: 'Every 6 hours', form: 'tab' },
-    { id: '4', name: 'Metronidazole', dose: '500mg', frequency: '3 times daily', form: 'tab' },
-    { id: '5', name: 'Augmentin', dose: '625mg', frequency: '2 times daily', form: 'tab' },
+    // --- Antibiotics ---
+    { id: '1', name: 'Amoxicillin', dose: '500mg', frequency: '1 x 3', form: 'Cap', notes: 'After meals' },
+    { id: '2', name: 'Augmentin', dose: '1g', frequency: '1 x 2', form: 'Tab', notes: 'Every 12 hours' },
+    { id: '3', name: 'Augmentin', dose: '625mg', frequency: '1 x 3', form: 'Tab', notes: 'Every 8 hours' },
+    { id: '4', name: 'Metronidazole (Flagyl)', dose: '500mg', frequency: '1 x 3', form: 'Tab', notes: 'For 5-7 days' },
+    { id: '5', name: 'Azithromycin (Zithromax)', dose: '500mg', frequency: '1 x 1', form: 'Tab', notes: 'For 3 days only' },
+    { id: '6', name: 'Clindamycin (Dalacin C)', dose: '300mg', frequency: '1 x 3', form: 'Cap', notes: 'For penicillin allergic patients' },
+    
+    // --- Analgesics & NSAIDs ---
+    { id: '7', name: 'Paracetamol (Panadol)', dose: '500mg', frequency: '1 x 3', form: 'Tab', notes: 'When needed' },
+    { id: '8', name: 'Paracetamol (Panadol Joint)', dose: '1000mg', frequency: '1 x 3', form: 'Tab', notes: 'Every 8 hours' },
+    { id: '9', name: 'Ibuprofen (Brufen)', dose: '400mg', frequency: '1 x 3', form: 'Tab', notes: 'After food' },
+    { id: '10', name: 'Ibuprofen (Brufen)', dose: '600mg', frequency: '1 x 2', form: 'Tab', notes: 'After food' },
+    { id: '11', name: 'Diclofenac Potassium (Catafast)', dose: '50mg', frequency: '1 x 3', form: 'Sachet', notes: 'Dissolve in water' },
+    { id: '12', name: 'Diclofenac Potassium (Cataflam)', dose: '50mg', frequency: '1 x 3', form: 'Tab', notes: 'After food' },
+    { id: '13', name: 'Mefenamic Acid (Ponstan Forte)', dose: '500mg', frequency: '1 x 3', form: 'Tab', notes: 'For pain and inflammation' },
+    { id: '14', name: 'Ketoprofen (Ketofan)', dose: '50mg', frequency: '1 x 3', form: 'Cap', notes: 'Powerful analgesic' },
+    { id: '15', name: 'Celecoxib (Celebrex)', dose: '200mg', frequency: '1 x 1', form: 'Cap', notes: 'Safe for stomach' },
+    
+    // --- Anti-inflammatory & Corticosteroids ---
+    { id: '16', name: 'Dexamethasone', dose: '0.5mg', frequency: '1 x 3', form: 'Tab', notes: 'For swelling' },
+    { id: '17', name: 'Alpha-Chymotrypsin', dose: '5mg', frequency: '1 x 3', form: 'Tab', notes: 'To reduce edema' },
+    
+    // --- Mouthwashes & Topical ---
+    { id: '18', name: 'Chlorhexidine Mouthwash', dose: '0.2%', frequency: 'Rinse x 2', form: 'Bottle', notes: '30 seconds rinse' },
+    { id: '19', name: 'Kenalog in Orabase', dose: 'Topical', frequency: '3 times', form: 'Paste', notes: 'For mouth ulcers' },
+    { id: '20', name: 'Gengigel', dose: 'Topical', frequency: '3 times', form: 'Gel', notes: 'For gum inflammation' }
   ],
   documentTemplates: [],
   labOrders: [],

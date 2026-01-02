@@ -94,6 +94,44 @@ export default function App() {
   });
   const [activeThemeId, setActiveThemeId] = useState<string>(() => localStorage.getItem('dentro_theme_id') || 'classic');
 
+  // PWA Install logic
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      // Prevent Chrome 67 and earlier from automatically showing the prompt
+      e.preventDefault();
+      // Stash the event so it can be triggered later.
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    window.addEventListener('appinstalled', () => {
+      // Log install to analytics or clear the deferred prompt
+      setDeferredPrompt(null);
+      console.log('PWA was installed');
+    });
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallApp = async () => {
+    const currentT = LABELS[deviceLang];
+    if (!deferredPrompt) {
+        // If app is already installed or prompt is not ready, give manual info
+        alert(currentT.installManualInfo);
+        return;
+    }
+    // Show the install prompt
+    deferredPrompt.prompt();
+    // Wait for the user to respond to the prompt
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log(`User response to the install prompt: ${outcome}`);
+    // We've used the prompt, and can't use it again, throw it away
+    setDeferredPrompt(null);
+  };
+
   // Improved Updater that commits to LocalStorage immediately
   const updateLocalData = (updater: (prev: ClinicData) => ClinicData) => {
       setData(prev => {
@@ -332,8 +370,6 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [data, isInitialLoading]);
 
-  const handleInstallApp = async () => { if (!deferredPrompt) return; deferredPrompt.prompt(); await deferredPrompt.userChoice; };
-
   const handleAuth = async (e: React.FormEvent) => {
       e.preventDefault(); setAuthLoading(true); setAuthError('');
       try {
@@ -510,7 +546,7 @@ export default function App() {
       <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title} message={confirmState.message} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} lang={currentLang} confirmLabel={confirmState.confirmLabel} cancelLabel={confirmState.cancelLabel} />
       <Sidebar t={t} data={data} currentView={currentView} setCurrentView={setCurrentView} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} setSelectedPatientId={setSelectedPatientId} handleLogout={handleLogout} isRTL={isRTL} isSecretary={isSecretary} handleManualSync={handleManualSync} syncStatus={syncStatus} />
       <main className="flex-1 h-screen overflow-y-auto custom-scrollbar relative">
-         {syncStatus === 'error' && navigator.onLine && ( <div className="bg-orange-500 text-white p-2 text-center text-xs font-bold animate-fade-in flex items-center justify-center gap-2"> <AlertCircle size={14} /> <span>{isRTL ? 'هناك تعديلات لم تُرفع بعد، سنحاول رفعها قريباً' : 'Some changes are not synced yet, retrying...'}</span> </div> )}
+         {syncStatus === 'error' && navigator.onLine && ( <div className="bg-orange-50 text-white p-2 text-center text-xs font-bold animate-fade-in flex items-center justify-center gap-2"> <AlertCircle size={14} /> <span>{isRTL ? 'هناك تعديلات لم تُرفع بعد، سنحاول رفعها قريباً' : 'Some changes are not synced yet, retrying...'}</span> </div> )}
          <div className="lg:hidden p-4 flex justify-between items-center bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-30"> <button onClick={() => setSidebarOpen(true)} className="p-2 text-gray-600 dark:text-gray-300"> <Menu /> </button> <div className="font-bold text-gray-800 dark:text-white flex items-center gap-2"> {data.clinicName} {activeDoctorId && ( <span className="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full"> {data.doctors.find(d => d.id === activeDoctorId)?.name} </span> )} {activeSecretaryId && ( <span className="text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full"> {t.secretaryProfile} </span> )} {isOffline && ( <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1"> <WifiOff size={10} /> Offline </span> )} </div> </div>
          <div className="p-4 md:p-8 pb-20 max-w-7xl mx-auto">
              {currentView === 'dashboard' && !isSecretary && ( <DashboardView t={t} data={data} allAppointments={allAppointments} setData={setData} activeDoctorId={activeDoctorId} setSelectedPatientId={setSelectedPatientId} setCurrentView={setCurrentView} setPatientTab={setPatientTab} /> )}

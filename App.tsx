@@ -96,11 +96,7 @@ export default function App() {
   });
   const [activeThemeId, setActiveThemeId] = useState<string>(() => localStorage.getItem('dentro_theme_id') || 'classic');
 
-  // New state for PWA Update
-  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
-
   useEffect(() => {
-    // Check for App Updates
     const handleBeforeInstallPrompt = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -420,10 +416,14 @@ export default function App() {
   }, [data, isInitialLoading]);
 
   const handleInstallApp = async () => { 
-    if (!deferredPrompt) return; 
+    if (!deferredPrompt) {
+        alert(isRTL ? "التثبيت مدعوم فقط عبر متصفح Chrome أو Safari (على آيفون). يرجى التأكد من أنك تستخدم متصفحاً متوافقاً." : "Installation is supported on Chrome or Safari. Please ensure you're using a compatible browser.");
+        return;
+    }
     deferredPrompt.prompt(); 
     await deferredPrompt.userChoice; 
-    setDeferredPrompt(null);
+    // We don't nullify deferredPrompt here anymore to satisfy user request "doesn't disappear"
+    // Although the browser might consume it, the UI logic in Settings handles the fallback.
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -673,23 +673,6 @@ export default function App() {
 
   return (
     <div className={`min-h-screen flex bg-page-bg font-${isRTL ? 'cairo' : 'sans'} leading-relaxed overflow-hidden transition-colors duration-300`} dir={isRTL ? 'rtl' : 'ltr'}>
-      
-      {/* PWA Update Banner */}
-      {deferredPrompt && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md animate-bounce">
-              <div className="bg-primary-600 text-white p-4 rounded-3xl shadow-2xl flex items-center justify-between border-2 border-white/20">
-                  <div className="flex items-center gap-3">
-                      <Download size={24} />
-                      <div className="text-start">
-                          <p className="text-xs font-black uppercase tracking-tighter opacity-80">{isRTL ? 'تثبيت التطبيق' : 'Install App'}</p>
-                          <p className="text-sm font-bold leading-tight">{isRTL ? 'استخدمه بدون إنترنت وبسرعة أكبر' : 'Use offline with faster performance'}</p>
-                      </div>
-                  </div>
-                  <button onClick={handleInstallApp} className="bg-white text-primary-600 px-4 py-2 rounded-xl font-black text-xs shadow-sm hover:scale-105 transition-transform active:scale-95">{isRTL ? 'تثبيت' : 'Install'}</button>
-              </div>
-          </div>
-      )}
-
       <ConfirmationModal isOpen={confirmState.isOpen} title={confirmState.title} message={confirmState.message} onConfirm={() => { confirmState.onConfirm(); closeConfirm(); }} onCancel={closeConfirm} lang={currentLang} confirmLabel={confirmState.confirmLabel} cancelLabel={confirmState.cancelLabel} />
       <Sidebar t={t} data={data} currentView={currentView} setCurrentView={setCurrentView} isSidebarOpen={isSidebarOpen} setSidebarOpen={setSidebarOpen} setSelectedPatientId={setSelectedPatientId} handleLogout={handleLogout} isRTL={isRTL} isSecretary={isSecretary} handleManualSync={handleManualSync} syncStatus={syncStatus} />
       <main className="flex-1 h-screen overflow-y-auto custom-scrollbar relative">

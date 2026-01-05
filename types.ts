@@ -7,6 +7,7 @@ export interface PatientImage {
   name: string;
   date: string;
   driveFileId?: string;
+  updatedAt?: number;
 }
 
 export interface Theme {
@@ -29,6 +30,8 @@ export interface Doctor {
   password?: string; 
   rxBackgroundImage?: string; 
   dashboardPin?: string;
+  incomePercentage?: number;
+  updatedAt?: number;
 }
 
 export interface Secretary {
@@ -36,6 +39,7 @@ export interface Secretary {
   name: string;
   username: string;
   password: string;
+  updatedAt?: number;
 }
 
 export interface Appointment {
@@ -49,6 +53,7 @@ export interface Appointment {
   sessionNumber?: number;
   notes?: string;
   status: 'scheduled' | 'completed' | 'cancelled' | 'noshow';
+  updatedAt?: number;
 }
 
 export interface Payment {
@@ -57,6 +62,7 @@ export interface Payment {
   amount: number;
   description: string;
   type: 'payment' | 'charge';
+  updatedAt?: number;
 }
 
 export interface Examination {
@@ -64,6 +70,7 @@ export interface Examination {
   date: string;
   amount: number;
   description: string;
+  updatedAt?: number;
 }
 
 export interface ToothSurfaces {
@@ -80,6 +87,7 @@ export interface ToothNote {
   fontSize: number;
   textColor: string;
   bgColor: string;
+  updatedAt?: number;
 }
 
 export interface Tooth {
@@ -88,6 +96,7 @@ export interface Tooth {
   surfaces?: ToothSurfaces;
   notes?: string;
   specialNote?: ToothNote;
+  updatedAt?: number;
 }
 
 export interface RootCanalEntry {
@@ -96,12 +105,14 @@ export interface RootCanalEntry {
   canalName: string;
   length: string;
   date: string;
+  updatedAt?: number;
 }
 
 export interface TreatmentSession {
   id: string;
   date: string;
   description: string;
+  updatedAt?: number;
 }
 
 export interface Medication {
@@ -111,6 +122,7 @@ export interface Medication {
   frequency: string;
   form: string;
   notes?: string;
+  updatedAt?: number;
 }
 
 export interface Prescription {
@@ -118,6 +130,7 @@ export interface Prescription {
   date: string;
   medications: Medication[];
   notes?: string;
+  updatedAt?: number;
 }
 
 export interface SupplyItem {
@@ -125,6 +138,7 @@ export interface SupplyItem {
   name: string;
   quantity: number;
   price?: number;
+  updatedAt?: number;
 }
 
 export interface InventoryItem {
@@ -135,6 +149,7 @@ export interface InventoryItem {
   price?: number;
   expiryDate?: string;
   color: string;
+  updatedAt?: number;
 }
 
 export interface ExpenseItem {
@@ -144,12 +159,14 @@ export interface ExpenseItem {
   price: number;
   date: string;
   uid?: string;
+  updatedAt?: number;
 }
 
 export interface DocumentTemplate {
   id: string;
   title: string;
   text: string;
+  updatedAt?: number;
 }
 
 export type PatientCategory = 'diagnosis' | 'rct' | 'implant' | 'crown' | 'surgery' | 'ortho' | 'filling' | 'cleaning' | 'smile' | 'whitening' | 'other';
@@ -157,11 +174,13 @@ export type PatientCategory = 'diagnosis' | 'rct' | 'implant' | 'crown' | 'surge
 export interface MedicalConditionItem {
   id: string;
   active: boolean;
+  updatedAt?: number;
 }
 
 export interface PatientQueryAnswer {
   questionId: string;
   answerId: string;
+  updatedAt?: number;
 }
 
 export interface Patient {
@@ -180,6 +199,7 @@ export interface Patient {
   status: 'active' | 'finished' | 'pending' | 'discontinued'; 
   doctorId: string;
   createdAt: string;
+  updatedAt?: number; 
   teeth: Record<number, Tooth>;
   headMap?: Record<string, string>;
   bodyMap?: Record<string, string>;
@@ -201,6 +221,7 @@ export interface TodoItem {
   id: string;
   text: string;
   done: boolean;
+  updatedAt?: number;
 }
 
 export interface MemoStyle {
@@ -221,6 +242,7 @@ export interface Memo {
   color: string;
   date: string;
   style?: MemoStyle;
+  updatedAt?: number;
 }
 
 export type LabOrderStatus = 'in_progress' | 'ready' | 'received' | 'cancelled';
@@ -238,6 +260,7 @@ export interface LabOrder {
   sentDate: string;
   status: LabOrderStatus;
   notes?: string;
+  updatedAt?: number;
 }
 
 export interface TextStyleConfig {

@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { DollarSign, TrendingUp, TrendingDown, Wallet, Activity, UserPlus, CreditCard, Lock, Unlock, ShieldCheck, FlaskConical, X, Filter, Stethoscope, Users, Calendar, AlertCircle, ChevronRight, Search, UserCircle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Wallet, Activity, UserPlus, CreditCard, Lock, Unlock, ShieldCheck, FlaskConical, X, Filter, Stethoscope, Users, Calendar, AlertCircle, ChevronRight, Search, UserCircle, ToggleLeft, ToggleRight, Percent, Briefcase } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, Legend } from 'recharts';
 import { format, addMonths, isSameMonth, startOfDay, endOfDay, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 import { ClinicData, Patient } from '../types';
@@ -186,6 +186,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
 
   const isRTL = data.settings.language === 'ar' || data.settings.language === 'ku';
   const isAdmin = !activeDoctorId;
+  const currentDoctor = activeDoctorId ? data.doctors.find(d => d.id === activeDoctorId) : null;
 
   useEffect(() => {
       localStorage.setItem('dentro_include_exams_finance', includeExamsInFinance.toString());
@@ -532,8 +533,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
       setShowExamsModal(false);
   };
 
+  const updateDoctorPercentage = (val: number) => {
+      if (!activeDoctorId) return;
+      setData(prev => ({
+          ...prev,
+          lastUpdated: Date.now(),
+          doctors: prev.doctors.map(d => d.id === activeDoctorId ? { ...d, incomePercentage: val } : d)
+      }));
+  };
+
   // Dynamic Card Title Helper
-  const getDynamicTitle = (type: 'income' | 'expenses' | 'profit' | 'patients') => {
+  const getDynamicTitle = (type: 'income' | 'expenses' | 'profit' | 'patients' | 'percentage' | 'share') => {
       if (type === 'income') {
           return timeRange === 'today' ? t.incomeToday : timeRange === 'week' ? t.incomeWeekly : timeRange === 'month' ? t.monthlyIncome : t.incomeThirtyDays;
       }
@@ -545,6 +555,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
       }
       if (type === 'patients') {
           return timeRange === 'today' ? t.newPatientsToday : timeRange === 'week' ? t.newPatientsWeekly : timeRange === 'month' ? t.newPatientsThisMonth : t.newPatientsThirtyDays;
+      }
+      if (type === 'percentage') {
+          return isRTL ? "نسبة الطبيب" : "Doctor Share %";
+      }
+      if (type === 'share') {
+          return isRTL ? "حصتك الصافية" : "Your Net Share";
       }
       return '';
   };
@@ -574,6 +590,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
          </div>
       );
   }
+
+  const doctorSharePercent = currentDoctor?.incomePercentage || 100;
+  const doctorShareAmount = (stats.income.current * doctorSharePercent) / 100;
 
   return (
     <>
@@ -684,31 +703,66 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
                         <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.income.prev.toLocaleString()})</p>
                     </div>
 
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-2xl text-red-600 dark:text-red-400"><Wallet size={24} /></div>
-                            <div className={`text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${stats.expenses.current <= stats.expenses.prev ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                {stats.expenses.current > stats.expenses.prev ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                {stats.expenses.prev > 0 ? Math.round(((stats.expenses.current - stats.expenses.prev) / stats.expenses.prev) * 100) : (stats.expenses.current > 0 ? 100 : 0)}%
+                    {isAdmin ? (
+                        <>
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-2xl text-red-600 dark:text-red-400"><Wallet size={24} /></div>
+                                    <div className={`text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${stats.expenses.current <= stats.expenses.prev ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                        {stats.expenses.current > stats.expenses.prev ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                        {stats.expenses.prev > 0 ? Math.round(((stats.expenses.current - stats.expenses.prev) / stats.expenses.prev) * 100) : (stats.expenses.current > 0 ? 100 : 0)}%
+                                    </div>
+                                </div>
+                                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('expenses')}</h3>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{data.settings.currency} {stats.expenses.current.toLocaleString()}</div>
+                                <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.expenses.prev.toLocaleString()})</p>
                             </div>
-                        </div>
-                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('expenses')}</h3>
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{data.settings.currency} {stats.expenses.current.toLocaleString()}</div>
-                        <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.expenses.prev.toLocaleString()})</p>
-                    </div>
 
-                    <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
-                        <div className="flex justify-between items-start mb-4">
-                            <div className="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-2xl text-indigo-600 dark:text-indigo-400"><Activity size={24} /></div>
-                            <div className={`text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${stats.profit.current >= stats.profit.prev ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                {stats.profit.current >= stats.profit.prev ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                                {stats.profit.prev > 0 ? Math.round(((stats.profit.current - stats.profit.prev) / stats.profit.prev) * 100) : 100}%
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-2xl text-indigo-600 dark:text-indigo-400"><Activity size={24} /></div>
+                                    <div className={`text-xs font-bold px-2 py-1 rounded-lg flex items-center gap-1 ${stats.profit.current >= stats.profit.prev ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                        {stats.profit.current >= stats.profit.prev ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+                                        {stats.profit.prev > 0 ? Math.round(((stats.profit.current - stats.profit.prev) / stats.profit.prev) * 100) : 100}%
+                                    </div>
+                                </div>
+                                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('profit')}</h3>
+                                <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{data.settings.currency} {stats.profit.current.toLocaleString()}</div>
+                                <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.profit.prev.toLocaleString()})</p>
                             </div>
-                        </div>
-                        <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('profit')}</h3>
-                        <div className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{data.settings.currency} {stats.profit.current.toLocaleString()}</div>
-                        <p className="text-xs text-gray-400 mt-2">{stats.comparisonLabel} ({stats.profit.prev.toLocaleString()})</p>
-                    </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="bg-indigo-100 dark:bg-indigo-900/30 p-3 rounded-2xl text-indigo-600 dark:text-indigo-400"><Percent size={24} /></div>
+                                    <div className="flex items-center gap-1 bg-gray-50 dark:bg-gray-700 rounded-lg p-1">
+                                        <input 
+                                            type="number" 
+                                            min="0" max="100" 
+                                            value={doctorSharePercent} 
+                                            onChange={(e) => updateDoctorPercentage(parseInt(e.target.value) || 0)}
+                                            className="w-10 bg-transparent text-center font-black text-xs outline-none"
+                                        />
+                                        <span className="text-[10px] font-black opacity-40">%</span>
+                                    </div>
+                                </div>
+                                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('percentage')}</h3>
+                                <div className="text-3xl font-black text-gray-900 dark:text-white mt-1">{doctorSharePercent}%</div>
+                                <p className="text-[10px] text-gray-400 mt-2 font-bold leading-tight">{isRTL ? "حدد نسبتك من الدخل الكلي ليتم حساب حصتك" : "Set your share % of the total income"}</p>
+                            </div>
+
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-2xl text-blue-600 dark:text-blue-400"><Briefcase size={24} /></div>
+                                    <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter shadow-sm animate-pulse">Net Share</div>
+                                </div>
+                                <h3 className="text-gray-500 dark:text-gray-400 text-sm font-bold uppercase">{getDynamicTitle('share')}</h3>
+                                <div className="text-2xl font-bold text-primary-600 dark:text-primary-400 mt-1">{data.settings.currency} {doctorShareAmount.toLocaleString()}</div>
+                                <p className="text-xs text-gray-400 mt-2">{isRTL ? "المبلغ المتبقي لك بعد احتساب النسبة" : "Total amount based on your %"}</p>
+                            </div>
+                        </>
+                    )}
 
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
                         <div className="flex justify-between items-start mb-4">
@@ -789,7 +843,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ t, data, allAppoin
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} /><XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} dy={10} /><YAxis axisLine={false} tickLine={false} tick={{fill: '#9ca3af', fontSize: 12}} />
                                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', backgroundColor: data.settings.theme === 'dark' ? '#1f2937' : '#fff' }} itemStyle={{ color: data.settings.theme === 'dark' ? '#fff' : '#1f2937', fontWeight: 'bold' }} />
-                                <Area type="monotone" dataKey="income" name={t.income} stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" /><Area type="monotone" dataKey="expenses" name={t.expenses} stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorExpense)" /><Legend verticalAlign="top" height={36} iconType="circle" />
+                                <Area type="monotone" dataKey="income" name={t.income} stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorIncome)" />
+                                {isAdmin && <Area type="monotone" dataKey="expenses" name={t.expenses} stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorExpense)" />}
+                                <Legend verticalAlign="top" height={36} iconType="circle" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </div>

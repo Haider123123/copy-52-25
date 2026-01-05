@@ -1,5 +1,5 @@
 
-import { Language } from './types';
+import { Language, ClinicData, Patient, Tooth, Appointment, Payment, Memo, InventoryItem, ExpenseItem, LabOrder, MedicalConditionItem, PatientQueryAnswer } from './types';
 import { LABELS } from './locales';
 import { TREATMENT_TYPES } from './constants';
 // @ts-ignore
@@ -15,6 +15,9 @@ export const hexToRgb = (hex: string): string => {
   return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '0, 0, 0';
 };
 
+/**
+ * إجبار عرض الوقت بالأرقام اللاتينية (0-9)
+ */
 export const formatTime12 = (time24: string, lang: Language) => {
   if (!time24) return '';
   const [hours, minutes] = time24.split(':');
@@ -27,6 +30,7 @@ export const formatTime12 = (time24: string, lang: Language) => {
   const pmLabel = LABELS[lang]?.night || 'PM';
   const ampm = isPm ? pmLabel : amLabel;
   
+  // استخدام الترقيم اللاتيني لضمان عدم تحول 0-9 إلى ٠-٩
   return `${h}:${minutes} ${ampm}`;
 };
 
@@ -38,13 +42,19 @@ export const getLocaleCode = (lang: 'en' | 'ar' | 'ku') => {
     }
 }
 
+/**
+ * إجبار عرض التاريخ بالأرقام اللاتينية (0-9) عبر numberingSystem: 'latn'
+ */
 export const getLocalizedDate = (date: Date, type: 'day' | 'month' | 'full' | 'weekday', lang: 'en' | 'ar' | 'ku') => {
     const locale = getLocaleCode(lang);
-    if (type === 'day') return new Intl.DateTimeFormat(locale, { day: 'numeric', numberingSystem: 'latn' }).format(date);
-    if (type === 'weekday') return new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(date);
-    if (type === 'month') return new Intl.DateTimeFormat(locale, { month: 'numeric', year: 'numeric', numberingSystem: 'latn' }).format(date);
-    if (type === 'full') return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'numeric', year: 'numeric', numberingSystem: 'latn' }).format(date);
-    return date.toDateString();
+    const options: Intl.DateTimeFormatOptions = { numberingSystem: 'latn' };
+    
+    if (type === 'day') options.day = 'numeric';
+    else if (type === 'weekday') options.weekday = 'long';
+    else if (type === 'month') { options.month = 'numeric'; options.year = 'numeric'; }
+    else if (type === 'full') { options.day = 'numeric'; options.month = 'numeric'; options.year = 'numeric'; }
+    
+    return new Intl.DateTimeFormat(locale, options).format(date);
 }
 
 export const getTreatmentLabel = (typeId?: string, currentLang: Language = 'en', isRTL: boolean = false) => {
@@ -54,13 +64,18 @@ export const getTreatmentLabel = (typeId?: string, currentLang: Language = 'en',
     return type?.en;
 };
 
+/**
+ * تحويل الأرقام الشرقية (٠-٩) إلى لاتينية (0-9) لضمان ثباتها
+ */
 const normalizeDigits = (str: string) => {
+  if (typeof str !== 'string') return str;
   return str.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
-            .replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵۶۷۸۹'.indexOf(d)]);
+            .replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵٦٧٨٩'.indexOf(d)]);
 };
 
 export const processArabicText = (text: string): string => {
   if (!text) return '';
+  // نقوم أولاً بتحويل أي أرقام هندية إلى لاتينية لتبقى ثابتة
   const normalizedText = normalizeDigits(text);
   const arabicPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
   if (!arabicPattern.test(normalizedText)) return normalizedText;
@@ -68,25 +83,101 @@ export const processArabicText = (text: string): string => {
       const reshaped = ArabicReshaper.convert(normalizedText);
       return reshaped.split('').reverse().join('');
   } catch (e) {
-      console.warn("Reshaping failed", e);
       return text;
   }
 };
 
-/**
- * Direct WhatsApp Redirect:
- * Forces the device to open the installed WhatsApp application immediately
- * without opening a new browser tab or landing page.
- */
 export const openWhatsApp = (phoneCode: string = '', phone: string = '') => {
-    // Clean the phone number from any symbols or spaces
     const cleanPhone = `${phoneCode.replace('+', '')}${phone.replace(/\s/g, '')}`;
-    
-    // The 'whatsapp://' protocol triggers the native application directly 
-    // on iOS (iPhone/iPad), Android, and Windows/Mac desktop apps.
     const directUrl = `whatsapp://send?phone=${cleanPhone}`;
-    
-    // Assigning to window.location.href triggers the OS protocol handler 
-    // without leaving the current app page.
     window.location.href = directUrl;
+};
+
+/**
+ * نظام دمج البيانات الدقيق (Granular Deep Merge)
+ * يمنع فقدان البيانات عند التعديل المتزامن من أجهزة مختلفة.
+ * يعتمد على مقارنة updatedAt لكل جزء صغير.
+ */
+export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData => {
+    if (!remote || !remote.clinicName) return local;
+    if (!local || !local.clinicName) return remote;
+
+    // دالة مساعدة لدمج المصفوفات بناءً على المعرف والوقت
+    const mergeArrayBy = <T extends { updatedAt?: number }>(locArr: T[], remArr: T[], key: keyof T): T[] => {
+        const mergedMap = new Map<any, T>();
+        
+        // نبدأ بالبيانات السحابية
+        (remArr || []).forEach(item => mergedMap.set(item[key], item));
+        
+        // ندمج البيانات المحلية: فقط إذا كان العنصر المحلي أحدث أو غير موجود سحابياً
+        (locArr || []).forEach(localItem => {
+            const remoteItem = mergedMap.get(localItem[key]);
+            if (!remoteItem || (localItem.updatedAt || 0) > (remoteItem.updatedAt || 0)) {
+                mergedMap.set(localItem[key], localItem);
+            }
+        });
+        
+        return Array.from(mergedMap.values());
+    };
+
+    const mergeArrayById = <T extends { id: string | number, updatedAt?: number }>(locArr: T[], remArr: T[]): T[] => {
+        return mergeArrayBy(locArr, remArr, 'id');
+    };
+
+    const mergePatients = (locPats: Patient[], remPats: Patient[]): Patient[] => {
+        const mergedMap = new Map<string, Patient>();
+        (remPats || []).forEach(p => mergedMap.set(p.id, p));
+
+        (locPats || []).forEach(localPat => {
+            const remotePat = mergedMap.get(localPat.id);
+            if (!remotePat) {
+                mergedMap.set(localPat.id, localPat);
+            } else {
+                // دمج البيانات الأساسية للمريض بناءً على الأحدث
+                const newerBase = (localPat.updatedAt || 0) > (remotePat.updatedAt || 0) ? localPat : remotePat;
+                
+                // دمج الأسنان (سن بسن): هذا يحل مشكلة تعديل سنين مختلفين من جهازين
+                const mergedTeeth: Record<number, Tooth> = { ...remotePat.teeth };
+                Object.keys(localPat.teeth).forEach(key => {
+                    const toothNum = parseInt(key);
+                    const localTooth = localPat.teeth[toothNum];
+                    const remoteTooth = mergedTeeth[toothNum];
+                    
+                    if (!remoteTooth || (localTooth.updatedAt || 0) > (remoteTooth.updatedAt || 0)) {
+                        mergedTeeth[toothNum] = localTooth;
+                    }
+                });
+
+                // دمج المصفوفات الداخلية للمريض
+                mergedMap.set(localPat.id, {
+                    ...newerBase,
+                    teeth: mergedTeeth,
+                    appointments: mergeArrayById(localPat.appointments, remotePat.appointments),
+                    payments: mergeArrayById(localPat.payments, remotePat.payments),
+                    examinations: mergeArrayById(localPat.examinations || [], remotePat.examinations || []),
+                    rootCanals: mergeArrayById(localPat.rootCanals || [], remotePat.rootCanals || []),
+                    treatmentSessions: mergeArrayById(localPat.treatmentSessions || [], remotePat.treatmentSessions || []),
+                    prescriptions: mergeArrayById(localPat.prescriptions || [], remotePat.prescriptions || []),
+                    images: mergeArrayById(localPat.images || [], remotePat.images || []),
+                    structuredMedicalHistory: mergeArrayById(localPat.structuredMedicalHistory || [], remotePat.structuredMedicalHistory || []) as MedicalConditionItem[],
+                    patientQueries: mergeArrayBy(localPat.patientQueries || [], remotePat.patientQueries || [], 'questionId'),
+                    updatedAt: Math.max(localPat.updatedAt || 0, remotePat.updatedAt || 0)
+                });
+            }
+        });
+
+        return Array.from(mergedMap.values());
+    };
+
+    return {
+        ...((local.lastUpdated || 0) > (remote.lastUpdated || 0) ? local : remote),
+        patients: mergePatients(local.patients, remote.patients),
+        memos: mergeArrayById(local.memos || [], remote.memos || []),
+        inventory: mergeArrayById(local.inventory || [], remote.inventory || []),
+        expenses: mergeArrayById(local.expenses || [], remote.expenses || []),
+        labOrders: mergeArrayById(local.labOrders || [], remote.labOrders || []),
+        doctors: mergeArrayById(local.doctors || [], remote.doctors || []),
+        secretaries: mergeArrayById(local.secretaries || [], remote.secretaries || []),
+        lastUpdated: Math.max(local.lastUpdated || 0, remote.lastUpdated || 0)
+    };
 };

@@ -12,6 +12,10 @@ export const ExaminationModal = ({ show, onClose, t, handleSave, selectedItem, d
 
     if (!show) return null;
 
+    const handleNumericInput = (e: React.FormEvent<HTMLInputElement>) => {
+        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+    };
+
     return createPortal(
         <div className="fixed inset-0 bg-black/50 z-[130] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
           <div className={`bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl p-8 ${fontClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -30,7 +34,8 @@ export const ExaminationModal = ({ show, onClose, t, handleSave, selectedItem, d
             <form onSubmit={(e) => {
               e.preventDefault();
               const fd = new FormData(e.currentTarget);
-              let amount = parseFloat(fd.get('amount') as string);
+              let amountInput = fd.get('amount') as string;
+              let amount = parseInt(amountInput) || 0;
               if (isShortcutActive && !isNaN(amount)) amount = amount * 1000;
 
               handleSave({ 
@@ -51,8 +56,9 @@ export const ExaminationModal = ({ show, onClose, t, handleSave, selectedItem, d
                       <span className="absolute top-1/2 -translate-y-1/2 start-5 text-gray-400 font-black text-lg">{data.settings.currency}</span> 
                       <input 
                         name="amount" 
-                        type="number" 
-                        step="0.001" 
+                        type="text" 
+                        inputMode="numeric"
+                        onInput={handleNumericInput}
                         defaultValue={selectedItem ? (isShortcutActive ? selectedItem.amount / 1000 : selectedItem.amount) : ''} 
                         className="w-full ps-16 pe-5 py-5 rounded-2xl border-2 border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 dark:text-white font-black text-2xl outline-none focus:border-primary-500 shadow-inner" 
                         required 

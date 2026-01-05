@@ -32,6 +32,10 @@ export const PaymentModal = ({ show, onClose, t, activePatient, paymentType, dat
 
     const isShortcutActive = data.settings.thousandsShortcut;
 
+    const handleNumericInput = (e: React.FormEvent<HTMLInputElement>) => {
+        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+    };
+
     return createPortal(
         <div className="fixed inset-0 bg-black/50 z-[120] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
           <div className={`bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl p-6 ${fontClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -51,13 +55,12 @@ export const PaymentModal = ({ show, onClose, t, activePatient, paymentType, dat
               const fd = new FormData(e.currentTarget);
               let amount = parseFloat(fd.get('amount') as string);
               
-              // Apply thousand shortcut logic
               if (isShortcutActive && !isNaN(amount)) {
                   amount = amount * 1000;
               }
 
               handleSavePayment({ 
-                  amount: amount, 
+                  amount: amount || 0, 
                   description: fd.get('description') as string, 
                   date: fd.get('date') as string, 
                   type: paymentType 
@@ -73,8 +76,9 @@ export const PaymentModal = ({ show, onClose, t, activePatient, paymentType, dat
                       <span className="absolute top-1/2 -translate-y-1/2 start-4 text-gray-500 font-bold">{data.settings.currency}</span> 
                       <input 
                         name="amount" 
-                        type="number" 
-                        step="0.001" 
+                        type="text" 
+                        inputMode="numeric"
+                        onInput={handleNumericInput}
                         defaultValue={selectedPayment ? (isShortcutActive ? selectedPayment.amount / 1000 : selectedPayment.amount) : ''} 
                         className="w-full ps-16 pe-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-bold text-xl outline-none focus:ring-2 focus:ring-primary-500 shadow-inner" 
                         required 
@@ -186,7 +190,7 @@ export const AddMasterDrugModal = ({ show, onClose, t, data, handleManageMedicat
                             <button onClick={() => { setEditingDrug(null); setView('form'); }} className="bg-primary-600 hover:bg-primary-700 text-white p-3 rounded-xl shadow-md transition"> <Plus size={20} /> </button>
                         </div>
                         <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 p-1">
-                            {filteredMeds.length === 0 ? ( <div className="text-center py-10 text-gray-400"> <Pill size={40} className="mx-auto mb-2 opacity-30" /> <p>{t.noMedicationsFound}</p> </div> ) : ( filteredMeds.map((med: Medication) => ( <div key={med.id} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 flex justify-between items-start group hover:border-primary-200 dark:hover:border-primary-500 transition"> <div> <div className="font-bold text-gray-800 dark:text-white text-lg">{med.name}</div> <div className="flex flex-wrap gap-2 mt-1"> {med.dose && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md font-medium" dir="ltr">{med.dose}</span>} {med.form && <span className="text-xs bg-purple-100 dark:bg-blue-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md font-medium">{med.form}</span>} {med.frequency && <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1" dir="ltr"> • {med.frequency}</span>} </div> {med.notes && <div className="text-xs text-gray-400 mt-1 italic">"{med.notes}"</div>} </div> <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"> <button onClick={() => { setEditingDrug(med); setView('form'); }} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"> <Edit2 size={18} /> </button> <button onClick={() => openConfirm(t.manageMedications, t.deleteMedicationConfirm, () => handleDeleteMasterDrug(med.id))} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg"> <Trash2 size={18} /> </button> </div> </div> )) )}
+                            {filteredMeds.length === 0 ? ( <div className="text-center py-10 text-gray-400"> <Pill size={40} className="mx-auto mb-2 opacity-30" /> <p>{t.noMedicationsFound}</p> </div> ) : ( filteredMeds.map((med: Medication) => ( <div key={med.id} className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-xl border border-gray-100 dark:border-gray-600 flex justify-between items-start group hover:border-primary-200 dark:hover:border-primary-500 transition"> <div> <div className="font-bold text-gray-800 dark:text-white text-lg">{med.name}</div> <div className="flex flex-wrap gap-2 mt-1"> {med.dose && <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-md font-medium" dir="ltr">{med.dose}</span>} {med.form && <span className="text-xs bg-purple-100 dark:bg-blue-900/40 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-md font-medium">{med.form}</span>} {med.frequency && <span className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1" dir="ltr"> • {med.frequency}</span>} </div> {med.notes && <div className="text-xs text-gray-400 mt-1 italic">"{med.notes}"</div>} </div> <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"> <button onClick={() => { setEditingDrug(med); setView('form'); }} className="p-2 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"> <Edit2 size={18} /> </button> <button onClick={() => openConfirm(t.manageMedications, t.deleteMedicationConfirm, () => handleDeleteMasterDrug(med.id))} className="p-2 text-red-500 hover:bg-red-900/20 rounded-lg"> <Trash2 size={18} /> </button> </div> </div> )) )}
                         </div>
                     </div>
                 ) : (

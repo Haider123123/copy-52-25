@@ -16,7 +16,7 @@ export const hexToRgb = (hex: string): string => {
 };
 
 /**
- * إجبار عرض الوقت بالأرقام اللاتينية (0-9)
+ * إجبار عرض الوقت بالأرقام اللاتينية 0-9
  */
 export const formatTime12 = (time24: string, lang: Language) => {
   if (!time24) return '';
@@ -30,7 +30,6 @@ export const formatTime12 = (time24: string, lang: Language) => {
   const pmLabel = LABELS[lang]?.night || 'PM';
   const ampm = isPm ? pmLabel : amLabel;
   
-  // استخدام الترقيم اللاتيني لضمان عدم تحول 0-9 إلى ٠-٩
   return `${h}:${minutes} ${ampm}`;
 };
 
@@ -43,7 +42,7 @@ export const getLocaleCode = (lang: 'en' | 'ar' | 'ku') => {
 }
 
 /**
- * إجبار عرض التاريخ بالأرقام اللاتينية (0-9) عبر numberingSystem: 'latn'
+ * إجبار عرض التاريخ بالأرقام اللاتينية 0-9
  */
 export const getLocalizedDate = (date: Date, type: 'day' | 'month' | 'full' | 'weekday', lang: 'en' | 'ar' | 'ku') => {
     const locale = getLocaleCode(lang);
@@ -65,17 +64,17 @@ export const getTreatmentLabel = (typeId?: string, currentLang: Language = 'en',
 };
 
 /**
- * تحويل الأرقام الشرقية (٠-٩) إلى لاتينية (0-9) لضمان ثباتها
+ * تحويل الأرقام الهندية/الشرقية إلى لاتينية لضمان استقرارها
  */
-const normalizeDigits = (str: string) => {
-  if (typeof str !== 'string') return str;
+export const normalizeDigits = (val: any) => {
+  if (val === null || val === undefined) return val;
+  const str = String(val);
   return str.replace(/[٠-٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
             .replace(/[۰-۹]/g, d => '0123456789'['۰۱۲۳۴۵٦٧٨٩'.indexOf(d)]);
 };
 
 export const processArabicText = (text: string): string => {
   if (!text) return '';
-  // نقوم أولاً بتحويل أي أرقام هندية إلى لاتينية لتبقى ثابتة
   const normalizedText = normalizeDigits(text);
   const arabicPattern = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
   if (!arabicPattern.test(normalizedText)) return normalizedText;
@@ -83,40 +82,33 @@ export const processArabicText = (text: string): string => {
       const reshaped = ArabicReshaper.convert(normalizedText);
       return reshaped.split('').reverse().join('');
   } catch (e) {
-      return text;
+      return normalizedText;
   }
 };
 
 export const openWhatsApp = (phoneCode: string = '', phone: string = '') => {
-    const cleanPhone = `${phoneCode.replace('+', '')}${phone.replace(/\s/g, '')}`;
+    const cleanPhone = `${phoneCode.replace('+', '')}${normalizeDigits(phone).replace(/\s/g, '')}`;
     const directUrl = `whatsapp://send?phone=${cleanPhone}`;
     window.location.href = directUrl;
 };
 
 /**
- * نظام دمج البيانات الدقيق (Granular Deep Merge)
- * يمنع فقدان البيانات عند التعديل المتزامن من أجهزة مختلفة.
- * يعتمد على مقارنة updatedAt لكل جزء صغير.
+ * نظام الدمج الذكي الدقيق (Granular Merge)
+ * يمنع فقدان البيانات عبر دمج التعديلات على مستوى العنصر وليس الكائن الكامل
  */
 export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData => {
     if (!remote || !remote.clinicName) return local;
     if (!local || !local.clinicName) return remote;
 
-    // دالة مساعدة لدمج المصفوفات بناءً على المعرف والوقت
     const mergeArrayBy = <T extends { updatedAt?: number }>(locArr: T[], remArr: T[], key: keyof T): T[] => {
         const mergedMap = new Map<any, T>();
-        
-        // نبدأ بالبيانات السحابية
         (remArr || []).forEach(item => mergedMap.set(item[key], item));
-        
-        // ندمج البيانات المحلية: فقط إذا كان العنصر المحلي أحدث أو غير موجود سحابياً
         (locArr || []).forEach(localItem => {
             const remoteItem = mergedMap.get(localItem[key]);
-            if (!remoteItem || (localItem.updatedAt || 0) > (remoteItem.updatedAt || 0)) {
+            if (!remoteItem || (localItem.updatedAt || 0) >= (remoteItem.updatedAt || 0)) {
                 mergedMap.set(localItem[key], localItem);
             }
         });
-        
         return Array.from(mergedMap.values());
     };
 
@@ -133,22 +125,20 @@ export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData
             if (!remotePat) {
                 mergedMap.set(localPat.id, localPat);
             } else {
-                // دمج البيانات الأساسية للمريض بناءً على الأحدث
-                const newerBase = (localPat.updatedAt || 0) > (remotePat.updatedAt || 0) ? localPat : remotePat;
+                // دمج الخصائص الأساسية للمريض (الاسم، العمر، إلخ) بناءً على الأحدث
+                const newerBase = (localPat.updatedAt || 0) >= (remotePat.updatedAt || 0) ? localPat : remotePat;
                 
-                // دمج الأسنان (سن بسن): هذا يحل مشكلة تعديل سنين مختلفين من جهازين
+                // دمج الأسنان بشكل منفصل (سن بسن)
                 const mergedTeeth: Record<number, Tooth> = { ...remotePat.teeth };
                 Object.keys(localPat.teeth).forEach(key => {
                     const toothNum = parseInt(key);
                     const localTooth = localPat.teeth[toothNum];
                     const remoteTooth = mergedTeeth[toothNum];
-                    
-                    if (!remoteTooth || (localTooth.updatedAt || 0) > (remoteTooth.updatedAt || 0)) {
+                    if (!remoteTooth || (localTooth.updatedAt || 0) >= (remoteTooth.updatedAt || 0)) {
                         mergedTeeth[toothNum] = localTooth;
                     }
                 });
 
-                // دمج المصفوفات الداخلية للمريض
                 mergedMap.set(localPat.id, {
                     ...newerBase,
                     teeth: mergedTeeth,
@@ -165,12 +155,11 @@ export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData
                 });
             }
         });
-
         return Array.from(mergedMap.values());
     };
 
     return {
-        ...((local.lastUpdated || 0) > (remote.lastUpdated || 0) ? local : remote),
+        ...((local.lastUpdated || 0) >= (remote.lastUpdated || 0) ? local : remote),
         patients: mergePatients(local.patients, remote.patients),
         memos: mergeArrayById(local.memos || [], remote.memos || []),
         inventory: mergeArrayById(local.inventory || [], remote.inventory || []),

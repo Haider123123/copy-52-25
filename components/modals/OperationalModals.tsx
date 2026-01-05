@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-// Add Palette to lucide-react imports
 import { X, Plus, Minus, Package, FlaskConical, ChevronDown, Tag, Search, CheckCircle2, User, Palette } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_COLORS } from '../../constants';
@@ -12,7 +11,12 @@ export const InventoryModal = ({ show, onClose, t, selectedItem, handleSaveItem,
     const isRTL = currentLang === 'ar' || currentLang === 'ku';
     const fontClass = isRTL ? 'font-cairo' : 'font-sans';
     useEffect(() => { setQuantity(selectedItem?.quantity || 0); }, [selectedItem, show]);
+    
     if (!show) return null;
+
+    const handleNumericInput = (e: React.FormEvent<HTMLInputElement>) => {
+        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+    };
 
     return createPortal(
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
@@ -21,20 +25,57 @@ export const InventoryModal = ({ show, onClose, t, selectedItem, handleSaveItem,
                 <form onSubmit={(e) => {
                     e.preventDefault();
                     const fd = new FormData(e.currentTarget);
-                    handleSaveItem({ name: fd.get('name'), quantity: quantity, minQuantity: parseInt(fd.get('minQuantity') as string), price: fd.get('price') ? parseFloat(fd.get('price') as string) : undefined, expiryDate: fd.get('expiryDate'), color: fd.get('color') });
+                    handleSaveItem({ 
+                        name: fd.get('name'), 
+                        quantity: quantity, 
+                        minQuantity: parseInt(fd.get('minQuantity') as string) || 0, 
+                        price: fd.get('price') ? parseFloat(fd.get('price') as string) : undefined, 
+                        expiryDate: fd.get('expiryDate'), 
+                        color: fd.get('color') 
+                    });
+                    onClose();
                 }} className="space-y-4">
                     <div> <label className="block text-xs font-bold text-gray-500 mb-1">{t.itemName}</label> <input name="name" defaultValue={selectedItem?.name} required autoComplete="off" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-primary-500" /> </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 mb-1">{t.currentQty}</label>
                         <div className="flex items-center gap-3">
                             <button type="button" onClick={() => setQuantity(Math.max(0, quantity - 1))} className="p-3 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition"> <Minus size={18} /> </button>
-                            <input name="quantity" type="number" value={quantity} onChange={(e) => setQuantity(parseInt(e.target.value) || 0)} className="flex-1 text-center font-bold text-xl py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" />
+                            <input 
+                                name="quantity" 
+                                type="text" 
+                                inputMode="numeric"
+                                value={quantity} 
+                                onInput={handleNumericInput}
+                                onChange={(e) => setQuantity(parseInt(e.target.value) || 0)} 
+                                className="flex-1 text-center font-bold text-xl py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" 
+                            />
                             <button type="button" onClick={() => setQuantity(quantity + 1)} className="p-3 bg-green-100 text-green-600 rounded-xl hover:bg-green-200 transition"> <Plus size={18} /> </button>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                         <div> <label className="block text-xs font-bold text-gray-500 mb-1">{t.minQty}</label> <input name="minQuantity" type="number" defaultValue={selectedItem ? selectedItem.minQuantity : 0} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
-                        <div> <label className="block text-xs font-bold text-gray-500 mb-1">{t.price}</label> <input name="price" type="number" step="0.01" defaultValue={selectedItem?.price} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
+                         <div> 
+                            <label className="block text-xs font-bold text-gray-500 mb-1">{t.minQty}</label> 
+                            <input 
+                                name="minQuantity" 
+                                type="text" 
+                                inputMode="numeric"
+                                onInput={handleNumericInput}
+                                defaultValue={selectedItem ? selectedItem.minQuantity : ''} 
+                                required 
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" 
+                            /> 
+                         </div>
+                        <div> 
+                            <label className="block text-xs font-bold text-gray-500 mb-1">{t.price}</label> 
+                            <input 
+                                name="price" 
+                                type="text" 
+                                inputMode="numeric"
+                                onInput={handleNumericInput}
+                                defaultValue={selectedItem?.price} 
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" 
+                            /> 
+                        </div>
                     </div>
                     <div> <label className="block text-xs font-bold text-gray-500 mb-1">{t.expiryDate}</label> <input name="expiryDate" type="date" defaultValue={selectedItem?.expiryDate} className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
                     <div>
@@ -54,6 +95,11 @@ export const SupplyModal = ({ show, onClose, t, selectedSupply, handleSaveSupply
     const isRTL = currentLang === 'ar' || currentLang === 'ku';
     const fontClass = isRTL ? 'font-cairo' : 'font-sans';
     if (!show) return null;
+
+    const handleNumericInput = (e: React.FormEvent<HTMLInputElement>) => {
+        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+    };
+
     return createPortal(
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
             <div className={`bg-white dark:bg-gray-800 w-full max-w-sm rounded-3xl shadow-2xl p-6 ${fontClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -61,12 +107,39 @@ export const SupplyModal = ({ show, onClose, t, selectedSupply, handleSaveSupply
                 <form onSubmit={(e) => {
                     e.preventDefault();
                     const fd = new FormData(e.currentTarget);
-                    handleSaveSupply(fd.get('name') as string, parseInt(fd.get('quantity') as string), parseFloat(fd.get('price') as string));
+                    handleSaveSupply(
+                        fd.get('name') as string, 
+                        parseInt(fd.get('quantity') as string) || 0, 
+                        parseFloat(fd.get('price') as string) || 0
+                    );
+                    onClose();
                 }} className="space-y-4">
                     <div> <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.itemName}</label> <input name="name" defaultValue={selectedSupply?.name} required autoComplete="off" className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div> <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.quantity}</label> <input name="quantity" type="number" defaultValue={selectedSupply?.quantity || 1} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
-                        <div> <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.price}</label> <input name="price" type="number" defaultValue={selectedSupply?.price || 0} required className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> </div>
+                        <div> 
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.quantity}</label> 
+                            <input 
+                                name="quantity" 
+                                type="text" 
+                                inputMode="numeric"
+                                onInput={handleNumericInput}
+                                defaultValue={selectedSupply?.quantity || 1} 
+                                required 
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" 
+                            /> 
+                        </div>
+                        <div> 
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.price}</label> 
+                            <input 
+                                name="price" 
+                                type="text" 
+                                inputMode="numeric"
+                                onInput={handleNumericInput}
+                                defaultValue={selectedSupply?.price} 
+                                required 
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" 
+                            /> 
+                        </div>
                     </div>
                     <div className="flex gap-2 pt-2"> <button type="button" onClick={onClose} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl">{t.cancel}</button> <button type="submit" className="flex-1 py-3 bg-primary-600 text-white font-bold rounded-xl shadow-lg hover:bg-primary-700">{t.save}</button> </div>
                 </form>
@@ -79,6 +152,11 @@ export const ExpenseModal = ({ show, onClose, t, selectedExpense, handleSaveExpe
     const isRTL = currentLang === 'ar' || currentLang === 'ku';
     const fontClass = isRTL ? 'font-cairo' : 'font-sans';
     if (!show) return null;
+
+    const handleNumericInput = (e: React.FormEvent<HTMLInputElement>) => {
+        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+    };
+
     return createPortal(
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
               <div className={`bg-white dark:bg-gray-800 w-full max-w-sm rounded-3xl shadow-2xl p-6 ${fontClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
@@ -86,12 +164,36 @@ export const ExpenseModal = ({ show, onClose, t, selectedExpense, handleSaveExpe
                   <form onSubmit={(e) => {
                       e.preventDefault();
                       const fd = new FormData(e.currentTarget);
-                      handleSaveExpense( fd.get('name') as string, parseInt(fd.get('quantity') as string), parseFloat(fd.get('price') as string), fd.get('date') as string );
+                      handleSaveExpense( 
+                          fd.get('name') as string, 
+                          parseInt(fd.get('quantity') as string) || 1, 
+                          parseFloat(fd.get('price') as string) || 0, 
+                          fd.get('date') as string 
+                      );
+                      onClose();
                   }} className="space-y-4">
                       <input name="name" defaultValue={selectedExpense?.name} placeholder={t.itemName} required autoComplete="off" className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" />
                       <div className="grid grid-cols-2 gap-4">
-                          <input name="quantity" type="number" defaultValue={selectedExpense?.quantity || 1} placeholder={t.quantity} required className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" />
-                          <input name="price" type="number" defaultValue={selectedExpense?.price} placeholder={t.price} required className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" />
+                          <input 
+                            name="quantity" 
+                            type="text" 
+                            inputMode="numeric"
+                            onInput={handleNumericInput}
+                            defaultValue={selectedExpense?.quantity || 1} 
+                            placeholder={t.quantity} 
+                            required 
+                            className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" 
+                          />
+                          <input 
+                            name="price" 
+                            type="text" 
+                            inputMode="numeric"
+                            onInput={handleNumericInput}
+                            defaultValue={selectedExpense?.price} 
+                            placeholder={t.price} 
+                            required 
+                            className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" 
+                          />
                       </div>
                       <input name="date" type="date" defaultValue={selectedExpense?.date ? format(new Date(selectedExpense.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')} required className="w-full p-3 rounded-xl border dark:bg-gray-700 dark:text-white outline-none" />
                       <div className="flex gap-2 pt-2"> <button type="button" onClick={onClose} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl">{t.cancel}</button> <button type="submit" className="flex-1 py-3 bg-primary-600 text-white font-bold rounded-xl shadow-lg hover:bg-primary-700">{t.save}</button> </div>
@@ -101,7 +203,6 @@ export const ExpenseModal = ({ show, onClose, t, selectedExpense, handleSaveExpe
     );
 };
 
-/* Modern Selector Chip Component */
 const ModernSelector = ({ options, selectedValue, onSelect, label, isRTL, icon: Icon }: any) => {
     return (
         <div className="space-y-3">
@@ -137,7 +238,6 @@ export const LabOrderModal = ({ show, onClose, t, data, selectedLabOrder, handle
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
     const [showPatientList, setShowPatientList] = useState(false);
     
-    // New selection-only states
     const [labName, setLabName] = useState('');
     const [workType, setWorkType] = useState('');
     const [shade, setShade] = useState('');
@@ -172,6 +272,10 @@ export const LabOrderModal = ({ show, onClose, t, data, selectedLabOrder, handle
     const filteredPatients = data.patients.filter((p: Patient) => p.name.toLowerCase().includes(patientSearch.toLowerCase()) );
     
     if (!show) return null;
+
+    const handleNumericInput = (e: React.FormEvent<HTMLInputElement>) => {
+        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+    };
 
     return createPortal(
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
@@ -208,9 +312,9 @@ export const LabOrderModal = ({ show, onClose, t, data, selectedLabOrder, handle
                         status: fd.get('status') as any, 
                         notes: fd.get('notes') as string 
                     });
+                    onClose();
                 }} className="space-y-8">
                     
-                    {/* Patient Search Section */}
                     <div ref={searchRef} className="relative bg-gray-50 dark:bg-gray-900/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                         <label className="block text-sm font-black text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-widest flex items-center gap-2">
                            <User size={16}/> {t.selectPatient} *
@@ -272,12 +376,19 @@ export const LabOrderModal = ({ show, onClose, t, data, selectedLabOrder, handle
                         icon={Palette} 
                     />
 
-                    {/* Numerical and Other Fields */}
                     <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div> 
                                 <label className="block text-xs font-black text-gray-400 uppercase mb-2 ms-1">{t.toothCount}</label> 
-                                <input name="toothCount" type="number" defaultValue={selectedLabOrder?.toothCount} className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none font-bold text-lg shadow-sm" placeholder="0" /> 
+                                <input 
+                                    name="toothCount" 
+                                    type="text" 
+                                    inputMode="numeric"
+                                    onInput={handleNumericInput}
+                                    defaultValue={selectedLabOrder?.toothCount} 
+                                    className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none font-bold text-lg shadow-sm" 
+                                    placeholder="0" 
+                                /> 
                             </div>
                             <div className="md:col-span-2"> 
                                 <label className="block text-xs font-black text-gray-400 uppercase mb-2 ms-1">{t.toothNumbers}</label> 
@@ -289,14 +400,21 @@ export const LabOrderModal = ({ show, onClose, t, data, selectedLabOrder, handle
                             <div> 
                                 <label className="block text-xs font-black text-gray-400 uppercase mb-2 ms-1">{t.price}</label> 
                                 <div className="relative">
-                                    <input name="price" type="number" step="0.01" defaultValue={selectedLabOrder?.price} className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none font-black text-2xl shadow-sm" placeholder="0.00" /> 
+                                    <input 
+                                        name="price" 
+                                        type="text" 
+                                        inputMode="numeric"
+                                        onInput={handleNumericInput}
+                                        defaultValue={selectedLabOrder?.price} 
+                                        className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none font-black text-2xl shadow-sm" 
+                                        placeholder="0" 
+                                    /> 
                                     <span className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'left-4' : 'right-4'} text-gray-400 font-bold`}>{data.settings.currency}</span>
                                 </div>
                             </div>
                             <div> 
                                 <label className="block text-xs font-black text-gray-400 uppercase mb-2 ms-1">{t.sentDate}</label> 
-                                <input name="sentDate" type="date" defaultValue={selectedLabOrder?.sentDate ? format(new Date(selectedLabOrder.sentDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')} className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none font-bold text-lg shadow-sm" /> 
-                            </div>
+                                <input name="sentDate" type="date" defaultValue={selectedLabOrder?.sentDate ? format(new Date(selectedLabOrder.sentDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')} className="w-full p-4 rounded-2xl bg-white dark:bg-gray-800 dark:text-white border-2 border-transparent focus:border-primary-500 outline-none font-bold text-lg shadow-sm" /> </div>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

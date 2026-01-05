@@ -28,7 +28,7 @@ import { ProfileSelector } from './components/ProfileSelector';
 import { isSameDay, isSameWeek, isSameMonth, addDays } from 'date-fns';
 import { Logo } from './components/Logo';
 import { THEMES } from './constants';
-import { hexToRgb, granularMerge } from './utils';
+import { hexToRgb, granularMerge, normalizeDigits } from './utils';
 
 export default function App() {
   const [data, setData] = useState<ClinicData>(INITIAL_DATA);
@@ -91,7 +91,7 @@ export default function App() {
   });
   const [activeThemeId, setActiveThemeId] = useState<string>(() => localStorage.getItem('dentro_theme_id') || 'classic');
 
-  // Unified State Update Helper with Global Timestamping
+  // التحديث الوظيفي الموحد (المفتاح لحل مشكلة اختفاء البيانات)
   const updateLocalData = (updater: (prev: ClinicData) => ClinicData) => {
       setData(prev => {
           const next = updater(prev);
@@ -103,26 +103,6 @@ export default function App() {
           storageService.saveData(updatedNext);
           return updatedNext;
       });
-  };
-
-  const handleManualSync = async (force: boolean = false) => {
-      if (!navigator.onLine || !data.settings.isLoggedIn || (syncStatus === 'syncing' && !force)) return;
-      setSyncStatus('syncing');
-      try {
-          const cloudData = await supabaseService.loadData();
-          if (cloudData) {
-              const localData = storageService.loadData();
-              const merged = granularMerge(localData, cloudData);
-              const final = mergeDataWithLocalPrefs(merged);
-              setData(final); 
-              storageService.saveData(final); 
-              setSyncStatus('synced'); 
-              return true;
-          }
-      } catch (e) { 
-        setSyncStatus('error'); 
-        return false; 
-      }
   };
 
   const mergeDataWithLocalPrefs = (externalData: ClinicData): ClinicData => {
@@ -137,55 +117,57 @@ export default function App() {
       };
   };
 
+  const handleManualSync = async (force: boolean = false) => {
+      if (!navigator.onLine || !data.settings.isLoggedIn || (syncStatus === 'syncing' && !force)) return;
+      setSyncStatus('syncing');
+      try {
+          const cloudData = await supabaseService.loadData();
+          if (cloudData) {
+              setData(prev => {
+                  const merged = granularMerge(prev, cloudData);
+                  const final = mergeDataWithLocalPrefs(merged);
+                  storageService.saveData(final);
+                  return final;
+              });
+              setSyncStatus('synced'); 
+              return true;
+          }
+      } catch (e) { setSyncStatus('error'); return false; }
+  };
+
   useEffect(() => {
     const initApp = async () => {
       const localData = storageService.loadData();
-      if (localData && localData.clinicName) {
-        setData(mergeDataWithLocalPrefs(localData));
-      }
+      if (localData && localData.clinicName) setData(mergeDataWithLocalPrefs(localData));
 
       const user = await supabaseService.getUser();
-      if (!user) {
-        setAppState('landing');
-        setIsInitialLoading(false);
-        return;
-      }
+      if (!user) { setAppState('landing'); setIsInitialLoading(false); return; }
 
-      const syncWithCloud = async () => {
-        try {
+      try {
           const cloudData = await supabaseService.loadData();
           if (cloudData) {
-            const currentLocal = storageService.loadData();
-            const mergedData = granularMerge(currentLocal, cloudData);
-            const finalData = mergeDataWithLocalPrefs(mergedData);
-            setData(finalData);
-            storageService.saveData(finalData);
+              setData(prev => {
+                  const merged = granularMerge(prev, cloudData);
+                  const final = mergeDataWithLocalPrefs(merged);
+                  storageService.saveData(final);
+                  return final;
+              });
           }
-        } catch (e) {
-          console.warn("Initial sync failed, using local.");
-        } finally {
-          const currentData = storageService.loadData();
-          if (currentData && currentData.clinicName) {
-            const savedProfileType = localStorage.getItem('dentro_profile_type');
-            if (savedProfileType === 'doctor') {
-              setActiveDoctorId(localStorage.getItem('dentro_active_profile'));
-            } else if (savedProfileType === 'secretary') {
-              setActiveSecretaryId(localStorage.getItem('dentro_active_secretary'));
-              setCurrentView('patients');
-            }
-            setAppState('app');
-          } else {
-            setAppState('app');
-          }
-          setIsInitialLoading(false);
-        }
-      };
-      syncWithCloud();
+      } catch (e) { console.warn("Initial sync failed, using local."); }
+      
+      const currentData = storageService.loadData();
+      if (currentData && currentData.clinicName) {
+          const savedProfileType = localStorage.getItem('dentro_profile_type');
+          if (savedProfileType === 'doctor') setActiveDoctorId(localStorage.getItem('dentro_active_profile'));
+          else if (savedProfileType === 'secretary') { setActiveSecretaryId(localStorage.getItem('dentro_active_secretary')); setCurrentView('patients'); }
+          setAppState('app');
+      } else setAppState('app');
+      setIsInitialLoading(false);
     };
     initApp();
   }, []);
 
-  // Periodic Granular Auto-Sync
+  // المزامنة التلقائية - تم تحديث المنطق لضمان عدم الكتابة فوق التعديلات الحالية
   useEffect(() => {
     if (!data.settings.isLoggedIn || isInitialLoading) return;
     const timer = setTimeout(async () => {
@@ -193,16 +175,22 @@ export default function App() {
             setSyncStatus('syncing');
             try { 
                 const latestCloud = await supabaseService.loadData();
-                let dataToSave = data;
                 if (latestCloud) {
-                    dataToSave = granularMerge(data, latestCloud);
-                    setData(mergeDataWithLocalPrefs(dataToSave));
+                    setData(prev => {
+                        const merged = granularMerge(prev, latestCloud);
+                        const final = mergeDataWithLocalPrefs(merged);
+                        // نرفع للسحاب فقط بعد التأكد من الدمج
+                        supabaseService.saveData(final);
+                        storageService.saveData(final);
+                        return final;
+                    });
+                } else {
+                    await supabaseService.saveData(data);
                 }
-                await supabaseService.saveData(dataToSave); 
                 setSyncStatus('synced'); 
             } catch (e) { setSyncStatus('error'); }
         } else setSyncStatus('offline');
-    }, 10000); // 10s debounce for background sync
+    }, 15000); // 15 ثانية لتقليل ضغط الشبكة وضمان استقرار البيانات أثناء الكتابة
     return () => clearTimeout(timer);
   }, [data, isInitialLoading]);
 
@@ -224,7 +212,7 @@ export default function App() {
 
   const handleClinicNameSubmit = (name: string) => { updateLocalData(prev => ({ ...prev, clinicName: name })); setAppState('profile_select'); };
 
-  // --- GRANULAR ATOMIC UPDATERS ---
+  // --- ATOMIC DATA HANDLERS ---
 
   const updatePatient = (id: string, updates: Partial<Patient>) => {
     updateLocalData(prev => ({
@@ -234,99 +222,91 @@ export default function App() {
   };
 
   const handleUpdateTooth = (patientId: string, toothId: number, status: Tooth['status']) => {
-    const timestamp = Date.now();
+    const ts = Date.now();
     updateLocalData(prev => ({
         ...prev,
         patients: prev.patients.map(p => {
             if (p.id !== patientId) return p;
-            const currentTooth = p.teeth[toothId] || { id: toothId, status: 'healthy' };
-            const updatedTooth = { ...currentTooth, status, updatedAt: timestamp };
-            return { ...p, teeth: { ...p.teeth, [toothId]: updatedTooth }, updatedAt: timestamp };
+            const tooth = p.teeth[toothId] || { id: toothId, status: 'healthy' };
+            return { ...p, updatedAt: ts, teeth: { ...p.teeth, [toothId]: { ...tooth, status, updatedAt: ts } } };
         })
     }));
   };
 
   const handleUpdateToothSurface = (patientId: string, toothId: number, surface: keyof ToothSurfaces | 'all', status: string) => {
-    const timestamp = Date.now();
+    const ts = Date.now();
     updateLocalData(prev => ({
         ...prev,
         patients: prev.patients.map(p => {
             if (p.id !== patientId) return p;
-            const currentTooth = p.teeth[toothId] || { id: toothId, status: 'healthy', surfaces: { top:'none', bottom:'none', left:'none', right:'none', center:'none' } };
-            let newSurfaces = { ...(currentTooth.surfaces || { top:'none', bottom:'none', left:'none', right:'none', center:'none' }) };
-            if (surface === 'all') {
-                const val = newSurfaces.center === status ? 'none' : status;
-                newSurfaces = { top: val, bottom: val, left: val, right: val, center: val };
-            } else {
-                newSurfaces[surface] = newSurfaces[surface] === status ? 'none' : status;
-            }
-            const updatedTooth = { ...currentTooth, surfaces: newSurfaces, updatedAt: timestamp };
-            return { ...p, teeth: { ...p.teeth, [toothId]: updatedTooth }, updatedAt: timestamp };
+            const tooth = p.teeth[toothId] || { id: toothId, status: 'healthy', surfaces: { top:'none', bottom:'none', left:'none', right:'none', center:'none' } };
+            let newSurfaces = { ...(tooth.surfaces || { top:'none', bottom:'none', left:'none', right:'none', center:'none' }) };
+            if (surface === 'all') { const val = newSurfaces.center === status ? 'none' : status; newSurfaces = { top: val, bottom: val, left: val, right: val, center: val }; }
+            else { newSurfaces[surface] = newSurfaces[surface] === status ? 'none' : status; }
+            return { ...p, updatedAt: ts, teeth: { ...p.teeth, [toothId]: { ...tooth, surfaces: newSurfaces, updatedAt: ts } } };
         })
     }));
   };
 
   const handleUpdateToothNote = (patientId: string, toothId: number, note: ToothNote) => {
-    const timestamp = Date.now();
+    const ts = Date.now();
     updateLocalData(prev => ({
         ...prev,
         patients: prev.patients.map(p => {
             if (p.id !== patientId) return p;
-            const currentTooth = p.teeth[toothId] || { id: toothId, status: 'healthy' };
-            const updatedTooth = { ...currentTooth, specialNote: { ...note, updatedAt: timestamp }, updatedAt: timestamp };
-            return { ...p, teeth: { ...p.teeth, [toothId]: updatedTooth }, updatedAt: timestamp };
+            const tooth = p.teeth[toothId] || { id: toothId, status: 'healthy' };
+            return { ...p, updatedAt: ts, teeth: { ...p.teeth, [toothId]: { ...tooth, specialNote: { ...note, updatedAt: ts }, updatedAt: ts } } };
         })
     }));
   };
 
   const handleAddPayment = (patientId: string, amount: number, type: 'payment' | 'charge', description: string) => {
-    const timestamp = Date.now();
-    const newPayment: Payment = { id: timestamp.toString(), date: new Date().toISOString(), amount, type, description, updatedAt: timestamp };
+    const ts = Date.now();
+    const newPayment: Payment = { id: ts.toString(), date: new Date().toISOString(), amount, type, description, updatedAt: ts };
     updateLocalData(prev => ({
         ...prev,
-        patients: prev.patients.map(p => p.id === patientId ? { ...p, payments: [newPayment, ...p.payments], updatedAt: timestamp } : p)
+        patients: prev.patients.map(p => p.id === patientId ? { ...p, payments: [newPayment, ...p.payments], updatedAt: ts } : p)
     }));
     setShowPaymentModal(false);
   };
 
   const handleAddAppointment = (patientId: string | null, apptData: Partial<Appointment>) => {
-    const timestamp = Date.now();
-    const newApptId = selectedAppointment ? selectedAppointment.id : timestamp.toString();
-    
+    const ts = Date.now();
+    const id = selectedAppointment ? selectedAppointment.id : ts.toString();
     if (patientId) {
         updateLocalData(prev => ({
             ...prev,
             patients: prev.patients.map(p => {
                 if (p.id !== patientId) return p;
                 const appts = selectedAppointment 
-                    ? p.appointments.map(a => a.id === selectedAppointment.id ? { ...a, ...apptData, updatedAt: timestamp } : a)
-                    : [...p.appointments, { ...apptData, id: newApptId, patientId, patientName: p.name, status: 'scheduled', updatedAt: timestamp } as Appointment];
-                return { ...p, appointments: appts, updatedAt: timestamp };
+                    ? p.appointments.map(a => a.id === id ? { ...a, ...apptData, updatedAt: ts } : a)
+                    : [...p.appointments, { ...apptData, id, patientId, patientName: p.name, status: 'scheduled', updatedAt: ts } as Appointment];
+                return { ...p, appointments: appts, updatedAt: ts };
             })
         }));
     } else {
         updateLocalData(prev => ({
             ...prev,
             guestAppointments: selectedAppointment 
-                ? (prev.guestAppointments || []).map(a => a.id === selectedAppointment.id ? { ...a, ...apptData, updatedAt: timestamp } : a)
-                : [...(prev.guestAppointments || []), { ...apptData, id: newApptId, patientId: '', patientName: apptData.patientName || 'Guest', status: 'scheduled', updatedAt: timestamp } as Appointment]
+                ? (prev.guestAppointments || []).map(a => a.id === id ? { ...a, ...apptData, updatedAt: ts } : a)
+                : [...(prev.guestAppointments || []), { ...apptData, id, patientId: '', patientName: apptData.patientName || 'Guest', status: 'scheduled', updatedAt: ts } as Appointment]
         }));
     }
     setShowAppointmentModal(false); setSelectedAppointment(null);
   };
 
   const handleSaveMemo = (title: string, content: string, color: string, type: 'text'|'todo' = 'text', todos: TodoItem[], style?: MemoStyle) => {
-    const timestamp = Date.now();
+    const ts = Date.now();
     updateLocalData(prev => ({
         ...prev,
         memos: selectedMemo 
-            ? (prev.memos || []).map(m => m.id === selectedMemo.id ? { ...m, title, content, color, type, todos, style, updatedAt: timestamp } : m)
-            : [{ id: timestamp.toString(), title, content, color, type, todos, date: new Date().toISOString(), style, updatedAt: timestamp }, ...(prev.memos || [])]
+            ? (prev.memos || []).map(m => m.id === selectedMemo.id ? { ...m, title, content, color, type, todos, style, updatedAt: ts } : m)
+            : [{ id: ts.toString(), title, content, color, type, todos, date: new Date().toISOString(), style, updatedAt: ts }, ...(prev.memos || [])]
     }));
     setShowMemoModal(false); setSelectedMemo(null);
   };
 
-  // --- GENERAL HANDLERS ---
+  // UI Handlers
   useEffect(() => {
       const theme = THEMES.find(t => t.id === activeThemeId) || THEMES[0];
       const root = document.documentElement;
@@ -372,9 +352,7 @@ export default function App() {
       <main className="flex-1 h-screen overflow-y-auto custom-scrollbar relative">
          <div className="lg:hidden p-4 flex justify-between items-center bg-white dark:bg-gray-800 shadow-sm sticky top-0 z-30">
             <button onClick={() => setSidebarOpen(true)} className="p-2 text-gray-600 dark:text-gray-300"><Menu /></button>
-            <div className="font-bold dark:text-white flex items-center gap-2">
-                {data.clinicName} {isOffline && <WifiOff size={14} className="text-red-500" />}
-            </div>
+            <div className="font-bold dark:text-white flex items-center gap-2"> {data.clinicName} {isOffline && <WifiOff size={14} className="text-red-500" />} </div>
          </div>
          
          <div className="p-4 md:p-8 pb-20 max-w-7xl mx-auto">
@@ -392,15 +370,15 @@ export default function App() {
       </main>
 
       <PrintLayouts t={currentT} data={data} activePatient={activePatient} printingRx={printingRx} setPrintingRx={setPrintingRx} printingPayment={printingPayment} setPrintingPayment={setPrintingPayment} printingAppointment={printingAppointment} setPrintingAppointment={setPrintingAppointment} printingDocument={printingDocument} setPrintingDocument={setPrintingDocument} printingExamination={printingExamination} setPrintingExamination={setPrintingExamination} currentLang={deviceLang} isRTL={isRTL} />
-      <PatientModal show={showNewPatientModal || showEditPatientModal} onClose={() => { setShowNewPatientModal(false); setShowEditPatientModal(false); }} t={currentT} isRTL={isRTL} currentLang={deviceLang} data={data} handleAddPatient={(pData: any) => { const timestamp = Date.now(); const newP = { ...pData, id: timestamp.toString(), createdAt: new Date().toISOString(), updatedAt: timestamp, teeth: {}, appointments: [], payments: [], notes: '', rootCanals: [], treatmentSessions: [], prescriptions: [] }; updateLocalData(p => ({...p, patients: [newP, ...p.patients]})); return newP; }} updatePatient={updatePatient} guestToConvert={guestToConvert} activePatient={showEditPatientModal ? activePatient : null} setSelectedPatientId={setSelectedPatientId} setCurrentView={setCurrentView} setPatientTab={setPatientTab} activeDoctorId={activeDoctorId} />
+      <PatientModal show={showNewPatientModal || showEditPatientModal} onClose={() => { setShowNewPatientModal(false); setShowEditPatientModal(false); }} t={currentT} isRTL={isRTL} currentLang={deviceLang} data={data} handleAddPatient={(pData: any) => { const ts = Date.now(); const newP = { ...pData, id: ts.toString(), createdAt: new Date().toISOString(), updatedAt: ts, teeth: {}, appointments: [], payments: [], notes: '', rootCanals: [], treatmentSessions: [], prescriptions: [] }; updateLocalData(p => ({...p, patients: [newP, ...p.patients]})); return newP; }} updatePatient={updatePatient} guestToConvert={guestToConvert} activePatient={showEditPatientModal ? activePatient : null} setSelectedPatientId={setSelectedPatientId} setCurrentView={setCurrentView} setPatientTab={setPatientTab} activeDoctorId={activeDoctorId} />
       <PaymentModal show={showPaymentModal} onClose={() => setShowPaymentModal(false)} t={currentT} activePatient={activePatient} paymentType={paymentType} data={data} handleSavePayment={(p: any) => handleAddPayment(activePatient!.id, p.amount, p.type, p.description)} currentLang={deviceLang} />
       <AppointmentModal show={showAppointmentModal} onClose={() => { setShowAppointmentModal(false); setApptPatientId(null); }} t={currentT} selectedAppointment={selectedAppointment} appointmentMode={appointmentMode} setAppointmentMode={setAppointmentMode} selectedPatientId={apptPatientId || (selectedPatientId && currentView === 'patients' ? selectedPatientId : null)} data={data} currentDate={currentDate} handleAddAppointment={handleAddAppointment} isRTL={isRTL} currentLang={deviceLang} />
       <AddMasterDrugModal show={showAddMasterDrugModal} onClose={() => setShowAddMasterDrugModal(false)} t={currentT} data={data} handleManageMedications={(m: any, a: any) => updateLocalData(p => ({...p, medications: a === 'add' ? [...p.medications, {...m, id: Date.now().toString(), updatedAt: Date.now()}] : p.medications.map(x=>x.id===m.id?{...m,updatedAt:Date.now()}:x)}))} handleDeleteMasterDrug={(id) => updateLocalData(p => ({...p, medications: p.medications.filter(x => x.id !== id)}))} currentLang={deviceLang} openConfirm={openConfirm} />
       <MemoModal show={showMemoModal} onClose={() => setShowMemoModal(false)} t={currentT} selectedMemo={selectedMemo} memoType={memoType} setMemoType={setMemoType} tempTodos={tempTodos} setTempTodos={setTempTodos} handleSaveMemo={handleSaveMemo} currentLang={deviceLang} />
-      <SupplyModal show={showSupplyModal} onClose={() => setShowSupplyModal(false)} t={currentT} selectedSupply={selectedSupply} handleSaveSupply={(n: any, q: any, pr: any) => { const timestamp = Date.now(); updateLocalData(p => ({...p, supplies: selectedSupply ? p.supplies.map(x=>x.id===selectedSupply.id?{...x,name:n,quantity:q,price:pr,updatedAt:timestamp}:x) : [{id:timestamp.toString(),name:n,quantity:q,price:pr,updatedAt:timestamp},...p.supplies]})); }} currentLang={deviceLang} />
-      <InventoryModal show={showInventoryModal} onClose={() => setShowInventoryModal(false)} t={currentT} selectedItem={selectedInventoryItem} handleSaveItem={(i: any) => { const timestamp = Date.now(); updateLocalData(p => ({...p, inventory: selectedInventoryItem ? p.inventory.map(x=>x.id===selectedInventoryItem.id?{...x,...i,updatedAt:timestamp}:x) : [{...i,id:timestamp.toString(),updatedAt:timestamp},...p.inventory]})); }} currentLang={deviceLang} />
-      <ExpenseModal show={showExpenseModal} onClose={() => setShowExpenseModal(false)} t={currentT} selectedExpense={selectedExpense} handleSaveExpense={(n: any, q: any, pr: any, d: any) => { const timestamp = Date.now(); updateLocalData(p => ({...p, expenses: selectedExpense ? p.expenses.map(x=>x.id===selectedExpense.id?{...x,name:n,quantity:q,price:pr,date:d,updatedAt:timestamp}:x) : [{id:timestamp.toString(),name:n,quantity:q,price:pr,date:d,updatedAt:timestamp},...p.expenses]})); }} currentLang={deviceLang} />
-      <LabOrderModal show={showLabOrderModal} onClose={() => setShowLabOrderModal(false)} t={currentT} data={data} selectedLabOrder={selectedLabOrder} handleSaveLabOrder={(o: any) => { const timestamp = Date.now(); updateLocalData(p => ({...p, labOrders: selectedLabOrder ? p.labOrders.map(x=>x.id===selectedLabOrder.id?{...x,...o,updatedAt:timestamp}:x) : [{...o,id:timestamp.toString(),updatedAt:timestamp},...p.labOrders]})); }} currentLang={deviceLang} />
+      <SupplyModal show={showSupplyModal} onClose={() => setShowSupplyModal(false)} t={currentT} selectedSupply={selectedSupply} handleSaveSupply={(n: any, q: any, pr: any) => { const ts = Date.now(); updateLocalData(p => ({...p, supplies: selectedSupply ? p.supplies.map(x=>x.id===selectedSupply.id?{...x,name:n,quantity:q,price:pr,updatedAt:ts}:x) : [{id:ts.toString(),name:n,quantity:q,price:pr,updatedAt:ts},...p.supplies]})); }} currentLang={deviceLang} />
+      <InventoryModal show={showInventoryModal} onClose={() => setShowInventoryModal(false)} t={currentT} selectedItem={selectedInventoryItem} handleSaveItem={(i: any) => { const ts = Date.now(); updateLocalData(p => ({...p, inventory: selectedInventoryItem ? p.inventory.map(x=>x.id===selectedInventoryItem.id?{...x,...i,updatedAt:ts}:x) : [{...i,id:ts.toString(),updatedAt:ts},...p.inventory]})); }} currentLang={deviceLang} />
+      <ExpenseModal show={showExpenseModal} onClose={() => setShowExpenseModal(false)} t={currentT} selectedExpense={selectedExpense} handleSaveExpense={(n: any, q: any, pr: any, d: any) => { const ts = Date.now(); updateLocalData(p => ({...p, expenses: selectedExpense ? p.expenses.map(x=>x.id===selectedExpense.id?{...x,name:n,quantity:q,price:pr,date:d,updatedAt:ts}:x) : [{id:ts.toString(),name:n,quantity:q,price:pr,date:d,updatedAt:ts},...p.expenses]})); }} currentLang={deviceLang} />
+      <LabOrderModal show={showLabOrderModal} onClose={() => setShowLabOrderModal(false)} t={currentT} data={data} selectedLabOrder={selectedLabOrder} handleSaveLabOrder={(o: any) => { const ts = Date.now(); updateLocalData(p => ({...p, labOrders: selectedLabOrder ? p.labOrders.map(x=>x.id===selectedLabOrder.id?{...x,...o,updatedAt:ts}:x) : [{...o,id:ts.toString(),updatedAt:ts},...p.labOrders]})); }} currentLang={deviceLang} />
       
       {showRxModal && (
         <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
@@ -433,7 +411,7 @@ export default function App() {
                   </div>
               </div>
               <div className="pt-4 border-t mt-4">
-                  <button onClick={() => { if(!activePatient) return; const timestamp = Date.now(); const rx = {id: timestamp.toString(), date: new Date().toISOString(), medications: newRxMeds, updatedAt: timestamp}; updatePatient(activePatient.id, { prescriptions: [rx, ...activePatient.prescriptions] }); setShowRxModal(false); setNewRxMeds([]); }} disabled={newRxMeds.length===0} className="w-full bg-primary-600 text-white py-4 rounded-xl font-bold shadow-lg disabled:opacity-50">{currentT.save}</button>
+                  <button onClick={() => { if(!activePatient) return; const ts = Date.now(); const rx = {id: ts.toString(), date: new Date().toISOString(), medications: newRxMeds, updatedAt: ts}; updatePatient(activePatient.id, { prescriptions: [rx, ...activePatient.prescriptions] }); setShowRxModal(false); setNewRxMeds([]); }} disabled={newRxMeds.length===0} className="w-full bg-primary-600 text-white py-4 rounded-xl font-bold shadow-lg disabled:opacity-50">{currentT.save}</button>
               </div>
            </div>
         </div>

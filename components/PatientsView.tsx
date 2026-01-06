@@ -285,7 +285,9 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
       ) : (
           viewMode === 'list' ? (
               <div className="flex flex-col gap-3">
-                {displayedPatients.map(patient => (
+                {displayedPatients.map(patient => {
+                const statusColor = (STATUS_COLORS[patient.status] || STATUS_COLORS.active).split(' ')[0];
+                return (
                 <div 
                     key={patient.id} 
                     className="group bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md hover:border-primary-200 dark:hover:border-primary-900 transition-all duration-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in"
@@ -293,14 +295,14 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
                 >
                     <div className="flex items-center gap-4 cursor-pointer flex-1">
                         <div className="relative">
-                            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl overflow-hidden shrink-0 border-2 border-white dark:border-gray-600 shadow-sm ${STATUS_COLORS[patient.status].split(' ')[0]}`}>
+                            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-xl overflow-hidden shrink-0 border-2 border-white dark:border-gray-600 shadow-sm ${statusColor}`}>
                                 {patient.profilePicture ? (
                                     <img src={patient.profilePicture} alt="" className="w-full h-full object-cover" />
                                 ) : (
                                     <span>{patient.gender === 'male' ? '👨' : '👩'}</span>
                                 )}
                             </div>
-                            <div className={`absolute bottom-0 end-0 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-gray-800 ${STATUS_COLORS[patient.status].split(' ')[0].replace('bg-', 'bg-')}`} />
+                            <div className={`absolute bottom-0 end-0 w-3.5 h-3.5 rounded-full border-2 border-white dark:border-gray-800 ${statusColor.replace('bg-', 'bg-')}`} />
                         </div>
                         <div>
                             <h3 className="font-bold text-lg text-gray-800 dark:text-white group-hover:text-primary-600 transition-colors">{patient.name}</h3>
@@ -319,23 +321,26 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
                         <PatientCardActions patient={patient} />
                     </div>
                 </div>
-                ))}
+                );
+                })}
               </div>
           ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-fade-in">
-                  {displayedPatients.map(patient => (
+                  {displayedPatients.map(patient => {
+                      const statusClass = (STATUS_COLORS[patient.status] || STATUS_COLORS.active);
+                      return (
                       <div 
                         key={patient.id} 
                         onClick={() => { setSelectedPatientId(patient.id); setPatientTab('overview'); setCurrentView('patients'); }}
                         className="group bg-white dark:bg-gray-800 p-6 rounded-[2rem] shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-2xl hover:-translate-y-1 hover:border-primary-100 dark:hover:border-primary-900 transition-all duration-300 relative overflow-hidden flex flex-col items-center text-center"
                       >
                           {/* Top Status Badge */}
-                          <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest ${STATUS_COLORS[patient.status]}`}>
+                          <div className={`absolute top-0 right-0 px-4 py-1.5 rounded-bl-2xl text-[10px] font-black uppercase tracking-widest ${statusClass}`}>
                               {t[patient.status] || patient.status}
                           </div>
 
                           <div className="mb-5 relative">
-                                <div className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl overflow-hidden border-4 border-white dark:border-gray-700 shadow-xl transition-transform duration-500 group-hover:scale-110 ${STATUS_COLORS[patient.status].split(' ')[0]}`}>
+                                <div className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl overflow-hidden border-4 border-white dark:border-gray-700 shadow-xl transition-transform duration-500 group-hover:scale-110 ${statusClass.split(' ')[0]}`}>
                                     {patient.profilePicture ? (
                                         <img src={patient.profilePicture} alt="" className="w-full h-full object-cover" />
                                     ) : (
@@ -368,7 +373,8 @@ export const PatientsView: React.FC<PatientsViewProps> = ({
                               </div>
                           </div>
                       </div>
-                  ))}
+                  );
+                  })}
               </div>
           )
       )}

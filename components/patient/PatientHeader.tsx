@@ -23,6 +23,7 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({
   activePatient, t, isRTL, currentLang, setSelectedPatientId, setShowEditPatientModal,
   openConfirm, handleDeletePatient, profilePicInputRef, handleProfilePicUpload, onOpenAI
 }) => {
+  const statusColorData = STATUS_COLORS[activePatient.status] || STATUS_COLORS.active;
   return (
     <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
         <button onClick={() => setSelectedPatientId(null)} className="md:hidden mb-2 flex items-center gap-2 text-gray-500">
@@ -31,7 +32,7 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({
 
         <div 
             onClick={() => profilePicInputRef.current?.click()}
-            className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl relative shadow-inner overflow-hidden group shrink-0 mx-auto md:mx-0 border-4 border-white dark:border-gray-700 cursor-pointer transition-all ${STATUS_COLORS[activePatient.status].split(' ')[0]}`}
+            className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl relative shadow-inner overflow-hidden group shrink-0 mx-auto md:mx-0 border-4 border-white dark:border-gray-700 cursor-pointer transition-all ${statusColorData.split(' ')[0]}`}
         >
             {activePatient.profilePicture ? (
                 <img src={activePatient.profilePicture} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
@@ -61,7 +62,7 @@ export const PatientHeader: React.FC<PatientHeaderProps> = ({
                         <ArrowLeft size={20} className="rtl:rotate-180" /> {t.backToPatients}
                     </button>
                     <button onClick={() => setShowEditPatientModal(true)} className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"><Edit2 size={20} /></button>
-                    <button onClick={() => openConfirm(t.deletePatient, t.confirmDelete, () => handleDeletePatient(activePatient.id))} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"><Trash2 size={20} /></button>
+                    <button onClick={() => openConfirm(t.deletePatient, t.confirmDelete, () => handleDeletePatient(activePatient.id))} className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-blue-900/20 rounded-lg transition"><Trash2 size={20} /></button>
                 </div>
             </div>
             

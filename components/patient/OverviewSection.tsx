@@ -52,15 +52,15 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
          
          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-700/50 p-5 rounded-2xl">
            <InfoItem label={t.name} value={activePatient.name} />
-           <InfoItem label={t.phone} value={<span dir="ltr" className={`block ${isRTL ? 'text-right' : 'text-left'}`}>{activePatient.phoneCode || ''} {activePatient.phone}</span>} />
-           <InfoItem label={t.age} value={activePatient.age.toString()} />
+           <InfoItem label={t.phone} value={<span dir="ltr" className={`block ${isRTL ? 'text-right' : 'text-left'}`}>{activePatient.phoneCode || ''} {activePatient.phone || ''}</span>} />
+           <InfoItem label={t.age} value={(activePatient.age ?? 0).toString()} />
            <InfoItem label={t.gender} value={activePatient.gender === 'male' ? t.male : t.female} />
            <InfoItem label={t.treatingDoctor} value={data.doctors.find(d => d.id === activePatient.doctorId)?.name} />
            <InfoItem label={t.category} value={(() => {
               const cat = CATEGORIES.find(c => c.id === activePatient.category);
               return isRTL ? (currentLang === 'ku' ? cat?.labelKu : cat?.labelAr) : cat?.label || 'Other';
            })()} />
-           <InfoItem label={t.registrationDate} value={getLocalizedDate(new Date(activePatient.createdAt), 'full', currentLang)} className="md:col-span-2" />
+           <InfoItem label={t.registrationDate} value={getLocalizedDate(new Date(activePatient.createdAt || Date.now()), 'full', currentLang)} className="md:col-span-2" />
            <InfoItem label={t.address} value={activePatient.address || '-'} className="md:col-span-2" />
          </div>
        </div>
@@ -128,7 +128,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
 
          <textarea 
              className="w-full p-4 rounded-2xl bg-gray-50 dark:bg-gray-700 border-none outline-none focus:ring-2 focus:ring-primary-500 dark:text-white min-h-[100px]"
-             value={activePatient.medicalHistory}
+             value={activePatient.medicalHistory || ''}
              onChange={(e) => updatePatient(activePatient.id, { medicalHistory: e.target.value })}
              placeholder={t.addNotesPlaceholder}
          />
@@ -141,7 +141,7 @@ export const OverviewSection: React.FC<OverviewSectionProps> = ({
          </h3>
          <textarea 
              className="w-full p-4 rounded-2xl bg-yellow-50 dark:bg-gray-700 border-none outline-none focus:ring-2 focus:ring-yellow-400 dark:text-white min-h-[120px]"
-             value={activePatient.notes}
+             value={activePatient.notes || ''}
              onChange={(e) => updatePatient(activePatient.id, { notes: e.target.value })}
              placeholder={t.addNotesPlaceholder}
          />

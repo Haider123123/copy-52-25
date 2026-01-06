@@ -25,14 +25,14 @@ export const PatientModal = ({ show, onClose, t, isRTL, currentLang, data, handl
             <form onSubmit={(e) => {
               e.preventDefault();
               const fd = new FormData(e.currentTarget);
-              const rawPhone = fd.get('phone') as string;
+              const rawPhone = fd.get('phone') as string || '';
               
-              // If doctor is logged in, use their ID. If admin, use the selected one.
-              const doctorIdToSave = activeDoctorId || (fd.get('doctorId') as string);
+              // If doctor is logged in, use their ID. If admin, use the selected one. Fallback to first doctor if none exist.
+              const doctorIdToSave = activeDoctorId || (fd.get('doctorId') as string) || (data.doctors[0]?.id || '');
 
               const formValues: any = {
                  name: fd.get('name') as string,
-                 age: parseInt(fd.get('age') as string),
+                 age: parseInt(fd.get('age') as string) || 0,
                  gender: fd.get('gender') as any,
                  phone: rawPhone.replace(/\s/g, ''),
                  phoneCode: fd.get('phoneCode') as string,
@@ -287,7 +287,7 @@ export const AppointmentModal = ({ show, onClose, t, selectedAppointment, appoin
 
                       <div>
                           <label className="block text-xs font-black text-gray-400 uppercase mb-1 tracking-widest">{t.notes}</label>
-                          <textarea name="notes" defaultValue={selectedAppointment?.notes} autoComplete="off" className="w-full p-3 rounded-xl border-2 border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-700 dark:text-white outline-none font-medium text-sm shadow-inner" placeholder={t.optionalNotesPlaceholder} rows={2} />
+                          <textarea name="notes" defaultValue={selectedAppointment?.notes} autoComplete="off" className="w-full p-3 rounded-xl border-2 border-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none font-medium text-sm shadow-inner" placeholder={t.optionalNotesPlaceholder} rows={2} />
                       </div>
 
                       <div className="flex gap-3 pt-4">

@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { ClinicData } from '../types';
 import { INITIAL_DATA } from '../initialData';
@@ -34,97 +35,116 @@ export const supabaseService = {
         .from('user_data')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        // PGRST116 means no rows found (Account Deleted)
-        if (error.code === 'PGRST116') return { exists: false, error: false };
-        // Any other error (network, server) is treated as a connection issue
-        return { exists: true, error: true };
+          console.error('Account check error:', error.message || JSON.stringify(error));
+          return { exists: true, error: true };
       }
-      
       return { exists: !!data, error: false };
-    } catch (e) {
+    } catch (e: any) {
+      console.error('Unexpected account check error:', e.message || String(e));
       return { exists: true, error: true };
     }
   },
 
   loadData: async (): Promise<ClinicData | null> => {
-    const user = await supabaseService.getUser();
-    if (!user) return null;
+    try {
+      const user = await supabaseService.getUser();
+      if (!user) {
+          console.warn('LoadData called without an active session.');
+          return null;
+      }
 
-    const { data, error } = await supabase
-      .from('user_data')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
+      // إزالة .order('updated_at') لأن العمود غير موجود في الجدول
+      // نعتمد على user_id كمعرف فريد لجلب سجل المريض
+      const { data, error } = await supabase
+        .from('user_data')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
+      if (error) {
+        console.error(`Database load error: ${error.message} (Code: ${error.code})`);
+        console.error('Full Error Object:', JSON.stringify(error, null, 2));
+        return null;
+      }
+
+      if (!data) {
+        console.log('No cloud data found for user, returning INITIAL_DATA');
         return INITIAL_DATA;
       }
-      console.error('Error loading data:', error);
-      return null;
+
+      // Parse content securely
+      let content = data.content || {};
+      if (typeof content === 'string') {
+          try {
+              content = JSON.parse(content);
+          } catch (e) {
+              console.error('Error parsing content JSON from DB:', e);
+              content = {};
+          }
+      }
+      
+      // Merge separated RX image data if exists
+      if (data['RX json']) {
+          const rxData = data['RX json'];
+          if (rxData && rxData.image) {
+              if (!content.settings) content.settings = { ...INITIAL_DATA.settings };
+              content.settings.rxBackgroundImage = rxData.image;
+          }
+      }
+
+      return { 
+          ...INITIAL_DATA, 
+          ...content,
+          lastUpdated: content.lastUpdated || 0
+      };
+    } catch (err: any) {
+        console.error('Critical failure in loadData:', err.message || String(err));
+        return null;
     }
-
-    const content = data.content || {};
-    
-    if (data['RX json']) {
-        const rxData = data['RX json'];
-        if (rxData && rxData.image) {
-            if (!content.settings) content.settings = { ...INITIAL_DATA.settings };
-            content.settings.rxBackgroundImage = rxData.image;
-        }
-    } else if (data.rx && typeof data.rx === 'string') {
-        if (!content.settings) content.settings = { ...INITIAL_DATA.settings };
-        content.settings.rxBackgroundImage = data.rx;
-    }
-
-    const cloudTimestamp = content.lastUpdated || 0;
-
-    return { 
-        ...INITIAL_DATA, 
-        ...content,
-        lastUpdated: cloudTimestamp
-    };
   },
 
   saveData: async (clinicData: ClinicData) => {
-    const user = await supabaseService.getUser();
-    if (!user) return;
+    try {
+        const user = await supabaseService.getUser();
+        if (!user) return;
 
-    const { data: existing } = await supabase
-      .from('user_data')
-      .select('id')
-      .eq('user_id', user.id)
-      .single();
+        const dataToSave = {
+            ...clinicData,
+            lastUpdated: Date.now()
+        };
 
-    const dataToSave = {
-        ...clinicData,
-        lastUpdated: Date.now()
-    };
+        // إزالة updated_at من الـ payload لتجنب الخطأ
+        const payload = {
+            user_id: user.id,
+            content: dataToSave,
+            "RX json": { image: clinicData.settings.rxBackgroundImage || '' }
+        };
 
-    const payload = {
-        content: dataToSave,
-        "RX json": { image: clinicData.settings.rxBackgroundImage }
-    };
+        const { error } = await supabase
+          .from('user_data')
+          .upsert(payload, { onConflict: 'user_id' });
 
-    if (existing) {
-      const { error } = await supabase
-        .from('user_data')
-        .update(payload)
-        .eq('id', existing.id);
-      
-      if (error) console.error('Error updating data:', error);
-    } else {
-      const { error } = await supabase
-        .from('user_data')
-        .insert({ 
-            user_id: user.id, 
-            ...payload
-        });
+        if (error) {
+          console.error('Upsert failed:', error.message || JSON.stringify(error));
+          
+          // Fallback manual check
+          const { data: existing, error: fetchError } = await supabase
+            .from('user_data')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
 
-      if (error) console.error('Error inserting data:', error);
+          if (existing) {
+              await supabase.from('user_data').update(payload).eq('id', existing.id);
+          } else if (!fetchError) {
+              await supabase.from('user_data').insert(payload);
+          }
+        }
+    } catch (err: any) {
+        console.error('Critical failure in saveData:', err.message || String(err));
     }
   }
 };

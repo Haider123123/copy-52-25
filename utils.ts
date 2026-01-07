@@ -5,6 +5,19 @@ import { TREATMENT_TYPES } from './constants';
 // @ts-ignore
 import ArabicReshaper from 'arabic-persian-reshaper';
 
+/**
+ * توليد ID فريد جداً وطويل يضمن عدم التكرار نهائياً
+ */
+export const generateId = () => {
+    try {
+        if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
+            return window.crypto.randomUUID();
+        }
+    } catch (e) {}
+    // Fallback for older browsers
+    return 'id-' + Date.now() + '-' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+};
+
 export const hexToRgb = (hex: string): string => {
   const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
   hex = hex.replace(shorthandRegex, (m, r, g, b) => {
@@ -95,10 +108,21 @@ export const openWhatsApp = (phoneCode: string = '', phone: string = '') => {
 /**
  * نظام الدمج الذكي الدقيق (Granular Merge)
  * يمنع فقدان البيانات عبر دمج التعديلات على مستوى العنصر وليس الكائن الكامل
+ * مضاف إليه نظام الـ Tombstone لمنع عودة المحذوفات
  */
 export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData => {
     if (!remote || !remote.clinicName) return local;
     if (!local || !local.clinicName) return remote;
+
+    // 1. دمج قوائم المعرفات المحذوفة (Tombstones)
+    const combinedDeletedIds = Array.from(new Set([
+        ...(local.deletedIds || []),
+        ...(remote.deletedIds || [])
+    ]));
+
+    const purgeDeleted = <T extends { id: string | number }>(arr: T[]): T[] => {
+        return (arr || []).filter(item => !combinedDeletedIds.includes(String(item.id)));
+    };
 
     const mergeArrayBy = <T extends { updatedAt?: number }>(locArr: T[], remArr: T[], key: keyof T): T[] => {
         const mergedMap = new Map<any, T>();
@@ -113,7 +137,7 @@ export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData
     };
 
     const mergeArrayById = <T extends { id: string | number, updatedAt?: number }>(locArr: T[], remArr: T[]): T[] => {
-        return mergeArrayBy(locArr, remArr, 'id');
+        return purgeDeleted(mergeArrayBy(locArr, remArr, 'id'));
     };
 
     const mergePatients = (locPats: Patient[], remPats: Patient[]): Patient[] => {
@@ -125,10 +149,8 @@ export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData
             if (!remotePat) {
                 mergedMap.set(localPat.id, localPat);
             } else {
-                // دمج الخصائص الأساسية للمريض (الاسم، العمر، إلخ) بناءً على الأحدث
                 const newerBase = (localPat.updatedAt || 0) >= (remotePat.updatedAt || 0) ? localPat : remotePat;
                 
-                // دمج الأسنان بشكل منفصل (سن بسن)
                 const mergedTeeth: Record<number, Tooth> = { ...remotePat.teeth };
                 Object.keys(localPat.teeth).forEach(key => {
                     const toothNum = parseInt(key);
@@ -155,7 +177,8 @@ export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData
                 });
             }
         });
-        return Array.from(mergedMap.values());
+        
+        return purgeDeleted(Array.from(mergedMap.values()));
     };
 
     return {
@@ -167,6 +190,7 @@ export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData
         labOrders: mergeArrayById(local.labOrders || [], remote.labOrders || []),
         doctors: mergeArrayById(local.doctors || [], remote.doctors || []),
         secretaries: mergeArrayById(local.secretaries || [], remote.secretaries || []),
+        deletedIds: combinedDeletedIds, // حفظ قائمة المحذوفات المدمجة
         lastUpdated: Math.max(local.lastUpdated || 0, remote.lastUpdated || 0)
     };
 };

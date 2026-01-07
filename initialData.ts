@@ -11,6 +11,7 @@ export const INITIAL_DATA: ClinicData = {
   supplies: [],
   inventory: [],
   expenses: [],
+  deletedIds: [], // مصفوفة لتتبع المعرفات المحذوفة
   medicationCategories: [
     { id: 'cat_antibiotics', name: 'Antibiotics - المضادات الحيوية' },
     { id: 'cat_analgesics', name: 'Analgesics - مسكنات الألم' },
@@ -30,6 +31,7 @@ export const INITIAL_DATA: ClinicData = {
     
     // --- Analgesics & NSAIDs ---
     { id: '7', categoryId: 'cat_analgesics', name: 'Paracetamol (Panadol)', dose: '500mg', frequency: '1 x 3', form: 'Tab', notes: 'When needed' },
+    // Fix: Removed 'fontStyle' property as it is not part of the Medication interface
     { id: '8', categoryId: 'cat_analgesics', name: 'Paracetamol (Panadol Joint)', dose: '1000mg', frequency: '1 x 3', form: 'Tab', notes: 'Every 8 hours' },
     { id: '9', categoryId: 'cat_analgesics', name: 'Ibuprofen (Brufen)', dose: '400mg', frequency: '1 x 3', form: 'Tab', notes: 'After food' },
     { id: '10', categoryId: 'cat_analgesics', name: 'Ibuprofen (Brufen)', dose: '600mg', frequency: '1 x 2', form: 'Tab', notes: 'After food' },

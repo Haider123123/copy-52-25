@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Printer, Edit2, Trash2, DollarSign, Settings, X, Info } from 'lucide-react';
@@ -110,7 +111,7 @@ export const FinancialsSection: React.FC<FinancialsSectionProps> = ({
           <h3 className="text-xl font-black text-gray-800 dark:text-white">{t.financials}</h3>
           <button 
             onClick={() => setShowFinSettings(true)}
-            className="p-3 bg-white dark:bg-gray-700 border border-gray-100 dark:border-gray-600 text-gray-500 dark:text-gray-300 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95"
+            className="p-3 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-600 text-gray-500 dark:text-gray-300 rounded-2xl shadow-sm hover:shadow-md transition-all active:scale-95"
           >
             <Settings size={20} />
           </button>
@@ -150,7 +151,7 @@ export const FinancialsSection: React.FC<FinancialsSectionProps> = ({
                            <div className="text-xl font-black text-gray-800 dark:text-white">{p.type === 'payment' ? '+' : '-'}{p.amount.toLocaleString()}</div>
                            {p.type === 'payment' && ( <button onClick={() => setPrintingPayment(p)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-600 rounded-xl transition" title={t.print}><Printer size={18} /></button> )}
                            <button onClick={() => openLocalPaymentModal(p.type, p)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-xl transition" title="Edit"><Edit2 size={18} /></button>
-                           <button onClick={() => openConfirm('Delete Transaction', 'Remove this payment record?', () => handleDeletePaymentTransaction(p.id))} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition" title="Delete"><Trash2 size={18} /></button>
+                           <button onClick={() => openConfirm(t.deleteItem, isRTL ? 'هل تريد حذف هذه العملية المالية؟' : 'Remove this transaction?', () => handleDeletePaymentTransaction(p.id))} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition" title="Delete"><Trash2 size={18} /></button>
                         </div>
                     </div>
                 ))

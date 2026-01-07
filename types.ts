@@ -323,6 +323,7 @@ export interface ClinicData {
   labs: string[];
   workTypes: string[];
   shades: string[];
+  deletedIds?: string[]; // مصفوفة لتتبع المعرفات المحذوفة
   settings: {
     language: Language;
     theme: 'light' | 'dark';

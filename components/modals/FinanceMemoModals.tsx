@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Check, Plus, Search, Trash2, Edit2, Pill, ArrowLeft, Save, DollarSign, FileText, ListTodo, AlignLeft, AlignRight, Italic, Heading, Type, Folder, LayoutGrid, ChevronRight } from 'lucide-react';
+import { X, Check, Plus, Search, Trash2, Edit2, Pill, ArrowLeft, Save, DollarSign, FileText, ListTodo, AlignLeft, AlignRight, Italic, Heading, Type, Folder, LayoutGrid, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEMO_COLORS } from '../../constants';
 import { TodoItem, Medication, MemoStyle, MedicationCategory } from '../../types';
@@ -18,14 +18,14 @@ const TodoListBuilder = ({ initialTodos, onChange, t }: { initialTodos: TodoItem
       <div className="space-y-3">
           <div className="flex gap-2"> <input value={newTodo} onChange={(e) => setNewTodo(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAdd())} placeholder={t.addTodo} autoComplete="off" className="flex-1 px-4 py-2 rounded-xl border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none" /> <button type="button" onClick={handleAdd} className="bg-primary-600 text-white p-2 rounded-xl"><Plus size={20} /></button> </div>
           <div className="max-h-40 overflow-y-auto space-y-2">
-              {todos.map(todo => ( <div key={todo.id} className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg group"> <button type="button" onClick={() => handleToggle(todo.id)} className={`w-5 h-5 rounded border flex items-center justify-center ${todo.done ? 'bg-green-500 border-transparent text-white' : 'border-gray-300 dark:border-gray-500'}`}> {todo.done && <Check size={12} />} </button> <span className={`flex-1 text-sm ${todo.done ? 'line-through opacity-50' : 'dark:text-white'}`}>{todo.text}</span> <button type="button" onClick={() => handleDelete(todo.id)} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><X size={16} /></button> </div> ))}
+              {todos.map(todo => ( <div key={todo.id} className="flex items-center gap-2 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg group"> <button type="button" onClick={() => handleToggle(todo.id)} className={`w-5 h-5 rounded border flex items-center justify-center ${todo.done ? 'bg-green-500 border-transparent text-white' : 'border-gray-300 dark:border-gray-500'}`}> {todo.done && <Check size={12} />} </button> <span className={`flex-1 text-sm ${todo.done ? 'line-through opacity-50' : ''} dark:text-white`}>{todo.text}</span> <button type="button" onClick={() => handleDelete(todo.id)} className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><X size={16} /></button> </div> ))}
               {todos.length === 0 && <p className="text-center text-xs text-gray-400 italic py-2">{t.items}...</p>}
           </div>
       </div>
     );
 };
 
-export const PaymentModal = ({ show, onClose, t, activePatient, paymentType, data, handleSavePayment, selectedPayment, currentLang }: any) => {
+export const PaymentModal = ({ show, onClose, t, activePatient, paymentType, data, handleSavePayment, selectedPayment, currentLang, isSaving, error }: any) => {
     const isRTL = currentLang === 'ar' || currentLang === 'ku';
     const fontClass = isRTL ? 'font-cairo' : 'font-sans';
     if (!show || !activePatient) return null;
@@ -49,6 +49,13 @@ export const PaymentModal = ({ show, onClose, t, activePatient, paymentType, dat
                     </span>
                 )}
             </div>
+
+            {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-2xl flex items-center gap-3 animate-shake">
+                    <AlertCircle size={20} className="shrink-0" />
+                    <p className="text-sm font-bold">{error}</p>
+                </div>
+            )}
             
             <form onSubmit={(e) => {
               e.preventDefault();
@@ -60,44 +67,49 @@ export const PaymentModal = ({ show, onClose, t, activePatient, paymentType, dat
               }
 
               handleSavePayment({ 
+                  id: selectedPayment?.id,
                   amount: amount || 0, 
                   description: fd.get('description') as string, 
                   date: fd.get('date') as string, 
                   type: paymentType 
-              });
+              }, !!selectedPayment);
             }} className="space-y-4">
-              <div> 
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.description}</label> 
-                  <input name="description" defaultValue={selectedPayment?.description} autoComplete="off" className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-primary-500" placeholder={paymentType === 'payment' ? t.egConsultation : t.treatmentCost} /> 
-              </div>
-              <div> 
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.price}</label> 
-                  <div className="relative"> 
-                      <span className="absolute top-1/2 -translate-y-1/2 start-4 text-gray-500 font-bold">{data.settings.currency}</span> 
-                      <input 
-                        name="amount" 
-                        type="text" 
-                        inputMode="numeric"
-                        onInput={handleNumericInput}
-                        defaultValue={selectedPayment ? (isShortcutActive ? selectedPayment.amount / 1000 : selectedPayment.amount) : ''} 
-                        className="w-full ps-16 pe-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-bold text-xl outline-none focus:ring-2 focus:ring-primary-500 shadow-inner" 
-                        required 
-                        autoFocus
-                      /> 
-                      {isShortcutActive && (
-                          <span className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'left-4' : 'right-4'} text-gray-300 font-black text-xs pointer-events-none`}>
-                              ,000
-                          </span>
-                      )}
-                  </div> 
-              </div>
-              <div> 
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.date}</label> 
-                  <input name="date" type="date" defaultValue={selectedPayment ? format(new Date(selectedPayment.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-primary-500" /> </div>
+              <fieldset disabled={isSaving} className="space-y-4">
+                <div> 
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.description}</label> 
+                    <input name="description" defaultValue={selectedPayment?.description} autoComplete="off" className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-primary-500" placeholder={paymentType === 'payment' ? t.egConsultation : t.treatmentCost} /> 
+                </div>
+                <div> 
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.price}</label> 
+                    <div className="relative"> 
+                        <span className="absolute top-1/2 -translate-y-1/2 start-4 text-gray-500 font-bold">{data.settings.currency}</span> 
+                        <input 
+                          name="amount" 
+                          type="text" 
+                          inputMode="numeric"
+                          onInput={handleNumericInput}
+                          defaultValue={selectedPayment ? (isShortcutActive ? selectedPayment.amount / 1000 : selectedPayment.amount) : ''} 
+                          className="w-full ps-16 pe-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white font-bold text-xl outline-none focus:ring-2 focus:ring-primary-500 shadow-inner" 
+                          required 
+                          autoFocus
+                        /> 
+                        {isShortcutActive && (
+                            <span className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'left-4' : 'right-4'} text-gray-300 font-black text-xs pointer-events-none`}>
+                                ,000
+                            </span>
+                        )}
+                    </div> 
+                </div>
+                <div> 
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">{t.date}</label> 
+                    <input name="date" type="date" defaultValue={selectedPayment ? format(new Date(selectedPayment.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')} className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none focus:ring-2 focus:ring-primary-500" /> </div>
+              </fieldset>
+
               <div className="flex gap-2 pt-4"> 
-                  <button type="button" onClick={onClose} className="flex-1 py-4 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition">{t.cancel}</button> 
-                  <button type="submit" className={`flex-1 py-4 text-white font-black rounded-xl shadow-xl shadow-primary-500/20 transform hover:-translate-y-0.5 active:scale-95 transition ${paymentType === 'payment' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}> 
-                      {t.save} 
+                  <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 py-4 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition disabled:opacity-30">{t.cancel}</button> 
+                  <button type="submit" disabled={isSaving} className={`flex-1 py-4 text-white font-black rounded-xl shadow-xl shadow-primary-500/20 transform hover:-translate-y-0.5 active:scale-95 transition flex items-center justify-center gap-2 disabled:opacity-70 ${paymentType === 'payment' ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}> 
+                      {isSaving && <Loader2 size={18} className="animate-spin" />}
+                      {isSaving ? (isRTL ? 'جاري الحفظ...' : 'Saving...') : t.save} 
                   </button> 
               </div>
             </form>

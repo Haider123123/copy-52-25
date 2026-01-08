@@ -1,4 +1,3 @@
-
 export const en = {
     privacyPolicy: "Privacy Policy",
     termsOfService: "Terms of Service",
@@ -570,5 +569,8 @@ export const en = {
     profitThirtyDays: "Profit (30 Days)",
     newPatientsToday: "Today's Patients",
     newPatientsWeekly: "Weekly Patients",
-    newPatientsThirtyDays: "Patients (30 Days)"
+    newPatientsThirtyDays: "Patients (30 Days)",
+    writeMedication: "Write Medication",
+    selectMedication: "Select Medication",
+    addPrescription: "Add to Prescription"
 };

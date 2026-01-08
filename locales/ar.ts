@@ -1,4 +1,3 @@
-
 export const ar = {
     privacyPolicy: "سياسة الخصوصية",
     termsOfService: "شروط الخدمة",
@@ -74,7 +73,7 @@ export const ar = {
     resetLocalDataDesc: "سيؤدي هذا إلى حذف كافة البيانات المحلية والملفات المؤقتة على هذا الجهاز. استخدم هذا الخيار في حال واجهت مشاكل في المزامنة. لن يتم حذف أي بيانات من السحابة.",
     resetConfirmTitle: "إعادة ضبط ذاكرة الجهاز؟",
     resetConfirmMsg: "سيتم تسجيل الخروج وحذف الملفات المحلية. بياناتك آمنة في السحابة وسيتم إعادة تحميلها عند تسجيل الدخول مرة أخرى.",
-    deviceNeedsActivation: "الجهاز يحتاج تفعيل الاتصال",
+    deviceNeedsActivation: "الجزاز يحتاج تفعيل الاتصال",
     deviceActivationDesc: "يجب تفعيل الاتصال لهذا الجهاز من قائمة الإعدادات للسماح برفع الملفات.",
     activateDevice: "تفعيل الجهاز الآن",
     deviceActiveReady: "الجهاز مفعل وجاهز للرفع",
@@ -155,7 +154,7 @@ export const ar = {
     switchProfile: "تبديل الحساب",
     addProfileFirst: "لا يوجد أطباء مسجلين. يرجى الدخول للحساب الأساسي لإضافة أطباء.",
     manageProfiles: "إدارة الحسابات",
-    profileSettings: "إعدادات البروفايل",
+    profileSettings: "بروفايل طبيب",
     myRxBg: "خلفية الوصفة الخاصة بي",
     adminAccessOnly: "صلاحيات الأدمن فقط",
     addProfilesHint: "يمكنك إضافة حسابات لكل طبيب أو للسكرتير من داخل الإعدادات في الحساب الأساسي.",
@@ -315,7 +314,7 @@ export const ar = {
     enterRxUrl: "أدخل رابط الصورة للخلفية",
     uploadRxBg: "رفع صورة خلفية",
     removeBg: "إزالة",
-    treatmentCost: "تكلفة العلاج",
+    treatmentCost: "تيكلفة العلاج",
     paymentReceived: "دفعة واصلة",
     transactionHistory: "سجل العمليات",
     receipt: "وصل قبض",
@@ -580,5 +579,8 @@ export const ar = {
     expensesThirtyDays: "مصاريف 30 يوم",
     profitToday: "أرباح اليوم",
     profitWeekly: "أرباح الأسبوع",
-    profitThirtyDays: "أرباح 30 يوم"
+    profitThirtyDays: "أرباح 30 يوم",
+    writeMedication: "كتابة دواء",
+    selectMedication: "اختيار دواء",
+    addPrescription: "إضافة للوصفة"
 };

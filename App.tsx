@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Menu, X, Plus, Search, Trash2, Pill, WifiOff, LayoutDashboard, RefreshCw, AlertCircle, CloudCheck, Cloud, LayoutGrid, Folder, ChevronLeft, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { ClinicData, Doctor, Secretary, Patient, Appointment, Payment, Tooth, RootCanalEntry, Memo, Prescription, Medication, SupplyItem, ExpenseItem, TodoItem, ToothSurfaces, LabOrder, InventoryItem, ToothNote, Language, MemoStyle, Examination, MedicalConditionItem, PatientQueryAnswer, MedicationCategory } from './types';
@@ -23,7 +22,7 @@ import { ExpensesView } from './components/ExpensesView';
 import { SettingsView } from './components/SettingsView';
 import { LabOrdersView } from './components/LabOrdersView';
 import { PrintLayouts } from './components/PrintLayouts';
-import { SupplyModal, MemoModal, PatientModal, PaymentModal, AppointmentModal, AddMasterDrugModal, ExpenseModal, LabOrderModal, InventoryModal } from './components/AppModals';
+import { SupplyModal, MemoModal, PatientModal, PaymentModal, AppointmentModal, AddMasterDrugModal, ExpenseModal, LabOrderModal, InventoryModal, PrescriptionModal } from './components/AppModals';
 import { ProfileSelector } from './components/ProfileSelector';
 import { isSameDay, isSameWeek, isSameMonth, addDays } from 'date-fns';
 import { Logo } from './components/Logo';
@@ -56,6 +55,7 @@ export default function App() {
   const [isProcessingAppt, setIsProcessingAppt] = useState(false);
   const [isProcessingFinance, setIsProcessingFinance] = useState(false);
   const [isProcessingExam, setIsProcessingExam] = useState(false);
+  const [isProcessingRx, setIsProcessingRx] = useState(false);
   const [isProcessingDelete, setIsProcessingDelete] = useState(false);
   const [opError, setOpError] = useState<string | null>(null);
 
@@ -77,9 +77,6 @@ export default function App() {
   const [selectedInventoryItem, setSelectedInventoryItem] = useState<InventoryItem | null>(null);
   const [showRxModal, setShowRxModal] = useState(false);
   const [showAddMasterDrugModal, setShowAddMasterDrugModal] = useState(false);
-  const [newRxMeds, setNewRxMeds] = useState<Medication[]>([]);
-  const [medSearch, setMedSearch] = useState('');
-  const [medForm, setMedForm] = useState<Partial<Medication>>({});
   const [printingRx, setPrintingRx] = useState<Prescription | null>(null);
   const [printingPayment, setPrintingPayment] = useState<Payment | null>(null);
   const [printingAppointment, setPrintingAppointment] = useState<Appointment | null>(null);
@@ -98,9 +95,6 @@ export default function App() {
       return saved ? parseInt(saved) : 100;
   });
   const [activeThemeId, setActiveThemeId] = useState<string>(() => localStorage.getItem('dentro_theme_id') || 'classic');
-
-  const [rxBrowseView, setRxBrowseView] = useState<'search' | 'groups' | 'group_meds'>('search');
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
 
   const checkOnlineStatus = () => {
     if (!navigator.onLine) {
@@ -396,7 +390,7 @@ export default function App() {
 
   useEffect(() => {
     const handlePopState = (event: PopStateEvent) => {
-      if (isProcessingPatient || isProcessingDelete || isProcessingAppt || isProcessingFinance || isProcessingExam) return; 
+      if (isProcessingPatient || isProcessingDelete || isProcessingAppt || isProcessingFinance || isProcessingExam || isProcessingRx) return; 
       if (showNewPatientModal) setShowNewPatientModal(false);
       else if (showEditPatientModal) setShowEditPatientModal(false);
       else if (showPaymentModal) setShowPaymentModal(false);
@@ -419,7 +413,7 @@ export default function App() {
     showNewPatientModal, showEditPatientModal, showPaymentModal, showAppointmentModal, 
     showMemoModal, showLabOrderModal, showInventoryModal, showRxModal, 
     showAddMasterDrugModal, showSupplyModal, showExpenseModal, isSidebarOpen, 
-    selectedPatientId, currentView, appState, isProcessingPatient, isProcessingDelete, isProcessingAppt, isProcessingFinance, isProcessingExam
+    selectedPatientId, currentView, appState, isProcessingPatient, isProcessingDelete, isProcessingAppt, isProcessingFinance, isProcessingExam, isProcessingRx
   ]);
 
   const pushNavState = () => {
@@ -564,6 +558,27 @@ export default function App() {
         ...prev,
         patients: prev.patients.map(p => p.id === id ? { ...p, ...updates, updatedAt: Date.now() } : p)
     }));
+  };
+
+  const handleSaveRxAsync = async (patientId: string, updates: Partial<Patient>) => {
+      setIsProcessingRx(true); setOpError(null);
+      try {
+          checkOnlineStatus();
+          const ts = Date.now();
+          const newData = { 
+              ...data, 
+              lastUpdated: ts, 
+              patients: data.patients.map(p => p.id === patientId ? { ...p, ...updates, updatedAt: ts } : p) 
+          };
+          setData(newData);
+          storageService.saveData(newData);
+          const success = await syncToCloud(newData);
+          if (success) setShowRxModal(false);
+      } catch (err: any) { 
+          setOpError(err.message || 'Sync failed'); 
+      } finally { 
+          setIsProcessingRx(false); 
+      }
   };
 
   const handleSaveExaminationAsync = async (patientId: string, examData: Examination, isEdit: boolean) => {
@@ -754,10 +769,6 @@ export default function App() {
   const currentT = LABELS[deviceLang];
   const isRTL = deviceLang === 'ar' || deviceLang === 'ku';
 
-  const filteredMedsForSearch = medSearch.trim() 
-    ? data.medications.filter(m => m.name.toLowerCase().includes(medSearch.toLowerCase())) 
-    : [];
-
   if (appState === 'loading' || isInitialLoading) return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 font-cairo">
       <Logo className="w-24 h-24 mb-6" />
@@ -803,7 +814,7 @@ export default function App() {
                 setShowPaymentModal={(val) => handleOpenModal(() => { setShowPaymentModal(val); setOpError(null); })} 
                 setPaymentType={setPaymentType} 
                 setSelectedPayment={setSelectedPayment}
-                setShowRxModal={(val) => handleOpenModal(() => { setShowRxModal(val); setRxBrowseView('search'); })} 
+                setShowRxModal={(val) => handleOpenModal(() => { setShowRxModal(val); setOpError(null); })} 
                 setShowAddMasterDrugModal={(val) => handleOpenModal(() => setShowAddMasterDrugModal(val))} 
                 openConfirm={openConfirm} 
                 setPrintingDocument={setPrintingDocument} 
@@ -883,135 +894,17 @@ export default function App() {
       <ExpenseModal show={showExpenseModal} onClose={() => setShowExpenseModal(false)} t={currentT} selectedExpense={selectedExpense} handleSaveExpense={async (n: any, q: any, pr: any, d: any) => { const ts = Date.now(); await updateAndSync(p => ({...p, expenses: selectedExpense ? p.expenses.map(x=>x.id===selectedExpense.id?{...x,name:n,quantity:q,price:pr,date:d,updatedAt:ts}:x) : [{id:generateId(),name:n,quantity:q,price:pr,date:d,updatedAt:ts},...p.expenses]})); }} currentLang={deviceLang} />
       <LabOrderModal show={showLabOrderModal} onClose={() => setShowLabOrderModal(false)} t={currentT} data={data} selectedLabOrder={selectedLabOrder} handleSaveLabOrder={async (o: any) => { const ts = Date.now(); await updateAndSync(p => ({...p, labOrders: selectedLabOrder ? p.labOrders.map(x=>x.id===selectedLabOrder.id?{...x,...o,updatedAt:ts}:x) : [{...o,id:generateId(),updatedAt:ts},...p.labOrders]})); }} currentLang={deviceLang} />
       
-      {showRxModal && (
-        <div className="fixed inset-0 bg-black/50 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
-           <div className={`bg-white dark:bg-gray-800 w-full max-w-2xl rounded-3xl shadow-2xl p-6 h-[85vh] flex flex-col`} dir={isRTL ? 'rtl' : 'ltr'}>
-              <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold dark:text-white flex items-center gap-2"><Pill className="text-primary-600" /> {currentT.newPrescription}</h3>
-                  <button onClick={() => setShowRxModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition"><X size={20} className="text-gray-500" /></button>
-              </div>
-
-              <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl mb-4 shrink-0 shadow-inner">
-                  <button onClick={() => setRxBrowseView('search')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition flex items-center justify-center gap-2 ${rxBrowseView === 'search' ? 'bg-white dark:bg-gray-600 shadow-sm text-primary-600' : 'text-gray-500'}`}>
-                      <Search size={16}/> {currentT.searchMedications}
-                  </button>
-                  <button onClick={() => setRxBrowseView('groups')} className={`flex-1 py-2 text-sm font-bold rounded-lg transition flex items-center justify-center gap-2 ${rxBrowseView !== 'search' ? 'bg-white dark:bg-gray-600 shadow-sm text-primary-600' : 'text-gray-500'}`}>
-                      <LayoutGrid size={16}/> {currentT.browseGroups}
-                  </button>
-              </div>
-
-              <div className="flex-1 overflow-hidden flex flex-col">
-                  {rxBrowseView === 'search' ? (
-                      <div className="flex-1 flex flex-col min-h-0">
-                        <div className="space-y-4 mb-4 shrink-0">
-                            <div className="relative">
-                                <div className="relative">
-                                    <Search className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-4' : 'left-4'} text-gray-400`} size={20} />
-                                    <input 
-                                        value={medSearch} 
-                                        onChange={(e) => setMedSearch(e.target.value)} 
-                                        autoComplete="off" 
-                                        className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 rounded-2xl border-2 border-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none focus:border-primary-500 transition font-bold`} 
-                                        placeholder={currentT.searchMedications} 
-                                    />
-                                </div>
-                                
-                                {medSearch.trim().length > 0 && (
-                                    <div className="absolute top-full left-0 right-0 z-[160] mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 max-h-48 overflow-y-auto custom-scrollbar animate-scale-up">
-                                        {filteredMedsForSearch.length > 0 ? (
-                                            filteredMedsForSearch.map(med => (
-                                                <button 
-                                                    key={med.id} 
-                                                    onClick={() => { 
-                                                        setNewRxMeds([...newRxMeds, { ...med, id: generateId() }]); 
-                                                        setMedSearch(''); 
-                                                    }} 
-                                                    className="w-full text-start p-4 hover:bg-primary-50 dark:hover:bg-primary-900/20 border-b last:border-0 border-gray-50 dark:border-gray-700 flex items-center justify-between group transition-colors"
-                                                >
-                                                    <div>
-                                                        <div className="font-black text-gray-800 dark:text-white group-hover:text-primary-600">{med.name}</div>
-                                                        <div className="text-[10px] text-gray-400 font-bold uppercase">{med.dose} • {med.form}</div>
-                                                    </div>
-                                                    <Plus size={14} className="text-gray-300 group-hover:text-primary-500" />
-                                                </button>
-                                            ))
-                                        ) : (
-                                            <div className="p-4 text-center text-xs text-gray-400 italic font-bold">{currentT.noMedicationsFound}</div>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <input value={medForm.dose || ''} onChange={e => setMedForm({...medForm, dose: e.target.value})} dir="ltr" placeholder={currentT.dose} className="p-3.5 rounded-xl border-2 border-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none font-bold text-end" />
-                                <input value={medForm.frequency || ''} onChange={e => setMedForm({...medForm, frequency: e.target.value})} dir="ltr" placeholder={currentT.frequency} className="p-3.5 rounded-xl border-2 border-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none font-bold text-end" />
-                                <input value={medForm.form || ''} onChange={e => setMedForm({...medForm, form: e.target.value})} placeholder={currentT.form} className="p-3.5 rounded-xl border-2 border-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none font-bold" />
-                                <input value={medForm.notes || ''} onChange={e => setMedForm({...medForm, notes: e.target.value})} placeholder={currentT.medNotes} className="p-3.5 rounded-xl border-2 border-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-white outline-none font-bold" />
-                            </div>
-                            <button onClick={() => { if(!medSearch && !medForm.name) return; setNewRxMeds([...newRxMeds, {id: generateId(), name: medSearch || medForm.name!, dose: medForm.dose||'', frequency: medForm.frequency||'', form: medForm.form||'', notes: medForm.notes}]); setMedSearch(''); setMedForm({}); }} className="w-full py-4 bg-primary-600 text-white font-black rounded-2xl shadow-xl hover:bg-primary-700 transition transform active:scale-95 flex items-center justify-center gap-2"> <Plus size={20} /> {currentT.addMedication}</button>
-                        </div>
-                      </div>
-                  ) : rxBrowseView === 'groups' ? (
-                      <div className="flex-1 overflow-y-auto custom-scrollbar p-1">
-                          <div className="grid grid-cols-2 gap-3">
-                              {(data.medicationCategories || []).map(cat => (
-                                  <button key={cat.id} onClick={() => { setActiveGroupId(cat.id); setRxBrowseView('group_meds'); }} className="p-6 bg-gray-50 dark:bg-gray-700 border-2 border-transparent hover:border-primary-400 hover:bg-white dark:hover:bg-gray-600 transition rounded-3xl flex flex-col items-center gap-3 group text-center shadow-sm">
-                                      <div className="w-14 h-14 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all shadow-inner"><Folder size={32}/></div>
-                                      <span className="font-black text-gray-800 dark:text-white text-sm leading-tight">{cat.name}</span>
-                                  </button>
-                              ))}
-                          </div>
-                      </div>
-                  ) : (
-                      <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-                          <button onClick={() => setRxBrowseView('groups')} className="mb-4 text-sm font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 hover:text-primary-600 transition">
-                              <ArrowLeft size={16} className="rtl:rotate-180" /> {currentT.back}
-                          </button>
-                          <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 p-1">
-                              {data.medications.filter(m => m.categoryId === activeGroupId).length === 0 ? (
-                                  <div className="text-center py-10 opacity-30 font-bold">{currentT.noMedicationsFound}</div>
-                              ) : (
-                                  data.medications.filter(m => m.categoryId === activeGroupId).map(med => (
-                                      <button key={med.id} onClick={() => { setNewRxMeds([...newRxMeds, { ...med, id: generateId() }]); }} className="w-full text-start p-4 bg-gray-50 dark:bg-gray-700 border border-gray-100 dark:border-gray-600 rounded-2xl hover:border-primary-300 transition flex items-center justify-between group shadow-sm">
-                                          <div>
-                                              <div className="font-black text-gray-800 dark:text-white text-lg">{med.name}</div>
-                                              <div className="text-xs text-gray-500 font-bold mt-1" dir="ltr">{med.dose} • {med.frequency} • {med.form}</div>
-                                          </div>
-                                          <div className="p-2 bg-primary-100 dark:bg-primary-900/30 text-primary-600 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"><Plus size={18}/></div>
-                                      </button>
-                                  ))
-                              )}
-                          </div>
-                      </div>
-                  )}
-
-                  {newRxMeds.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col shrink-0">
-                        <div className="flex items-center justify-between mb-3 px-1">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{currentT.rxList}</span>
-                            <span className="bg-primary-600 text-white px-2 py-0.5 rounded-full text-[10px] font-black">{newRxMeds.length}</span>
-                        </div>
-                        <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                            {newRxMeds.map((m, i) => (
-                                <div key={i} className="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 shrink-0 shadow-sm animate-scale-up">
-                                    <div className="text-start">
-                                        <div className="font-black dark:text-white text-sm whitespace-nowrap leading-none mb-1">{m.name}</div>
-                                        <div className="text-[10px] text-blue-600 font-bold leading-none" dir="ltr">{m.dose} • {m.frequency}</div>
-                                    </div>
-                                    <button onClick={() => setNewRxMeds(newRxMeds.filter((_, idx)=>idx!==i))} className="p-1.5 text-red-500 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:scale-110 transition-transform"><Trash2 size={14}/></button>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                  )}
-              </div>
-
-              <div className="pt-4 border-t border-gray-100 dark:border-gray-700 mt-4 shrink-0">
-                  <button onClick={async () => { if(!activePatient) return; const ts = Date.now(); const rx = {id: generateId(), date: new Date().toISOString(), medications: newRxMeds, updatedAt: ts}; await updatePatientAsync(activePatient.id, { prescriptions: [rx, ...activePatient.prescriptions] }); setShowRxModal(false); setNewRxMeds([]); }} disabled={newRxMeds.length===0} className="w-full bg-primary-600 text-white py-5 rounded-[2rem] font-black text-xl shadow-xl shadow-primary-500/30 disabled:opacity-50 transition transform active:scale-95 flex items-center justify-center gap-3"> <CheckCircle2 size={24}/> {currentT.save} </button>
-              </div>
-           </div>
-        </div>
-      )}
+      <PrescriptionModal 
+        show={showRxModal} 
+        onClose={() => { if(!isProcessingRx) setShowRxModal(false); }} 
+        t={currentT} 
+        data={data} 
+        patient={activePatient} 
+        currentLang={deviceLang} 
+        isRTL={isRTL} 
+        handleSave={handleSaveRxAsync} 
+        isSaving={isProcessingRx}
+      />
     </div>
   );
 }

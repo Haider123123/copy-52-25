@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Check, Save, ArrowLeft, Settings, Image, Layout, ClipboardList, Edit2, Trash2, Printer, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Type as TypeIcon, HelpCircle, Stethoscope, Eye, Upload, Pill, PlusCircle, FileText, Maximize, FileStack, Minus, Hash } from 'lucide-react';
+import { X, Check, Save, ArrowLeft, Settings, Image, Layout, ClipboardList, Edit2, Trash2, Printer, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Type as TypeIcon, HelpCircle, Stethoscope, Eye, Upload, Pill, PlusCircle, FileText, Maximize, FileStack, Minus, Hash, Search, LayoutGrid, Folder, Plus, ChevronRight, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { MEDICAL_CONDITIONS_LIST, PATIENT_QUESTIONS_LIST } from '../../constants';
-import { ClinicData, DocumentTemplate, MedicalConditionItem, PatientQueryAnswer, TextStyleConfig, DocumentSettings, LineStyleConfig } from '../../types';
+import { ClinicData, DocumentTemplate, MedicalConditionItem, PatientQueryAnswer, TextStyleConfig, DocumentSettings, LineStyleConfig, Medication, Patient } from '../../types';
+import { generateId } from '../../utils';
 
 const StyleEditor = ({ config, onChange, label, t }: { config: TextStyleConfig, onChange: (c: TextStyleConfig) => void, label: string, t: any }) => {
     return (
@@ -87,13 +87,12 @@ export const DocumentSettingsModal = ({ show, onClose, t, data, setData, current
         if (show && data && data.settings) {
             const saved = type === 'consent' ? data.settings.consentSettings : data.settings.instructionSettings;
             if (saved) setSettings(saved);
-            // Reset to menu only when the modal is first opened or type changes
             setCurrentView('menu'); 
             setIsManagingTemplate(false); 
             setEditingTemplateId(null); 
             setShowQuickTemplates(false);
         }
-    }, [show, type]); // Removed 'data' to prevent resets during editing/syncing
+    }, [show, type]);
 
     const handleSave = () => { setData((prev: ClinicData) => ({ ...prev, lastUpdated: Date.now(), settings: { ...prev.settings, [type === 'consent' ? 'consentSettings' : 'instructionSettings']: settings } })); setCurrentView('menu'); };
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -221,12 +220,11 @@ export const RxSettingsModal = ({ show, onClose, t, data, setData, handleRxFileU
             setHeaderLineConfig(s?.headerLine || defaultHeaderLine);
             setTopMargin(s?.topMargin ?? 100);
             setPaperSize(s?.paperSize || 'A5');
-            // Only set to menu when the modal is initially opened
             if (currentView === 'menu') {
                 setCurrentView('menu');
             }
         }
-    }, [show]); // Removed 'data' to prevent resets during editing/syncing
+    }, [show]);
 
     const handleSaveStyle = () => { 
         setData((prev: ClinicData) => ({ 
@@ -301,7 +299,7 @@ export const RxSettingsModal = ({ show, onClose, t, data, setData, handleRxFileU
                     )}
                     {currentView === 'upload_bg' && (
                         <div className="flex flex-col h-full space-y-6">
-                            {currentBg ? ( <div className="bg-white dark:bg-gray-700 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-600 shadow-sm relative animate-fade-in"> <div className="flex justify-between items-center mb-4"> <h4 className="font-bold text-gray-700 dark:text-white flex items-center gap-2"> <Eye size={18} className="text-primary-500" /> {isRTL ? "خلفية الوصفة الحالية" : "Current Rx Background"} </h4> <button onClick={() => { handleRemoveRxBg?.(); }} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition shadow-sm" title={t.removeBg}> <Trash2 size={16} /> </button> </div> <div className="aspect-[1/1.4] max-h-64 mx-auto overflow-hidden rounded-xl border border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 shadow-inner"> <img src={currentBg} alt="Background Preview" className="w-full h-full object-contain" /> </div> </div> ) : ( <div className="p-8 bg-gray-50 dark:bg-gray-900/50 rounded-[2.5rem] border-2 border-dashed border-gray-200 dark:border-gray-700 text-center opacity-60"> <Image size={40} className="mx-auto mb-2 text-gray-400" /> <p className="text-sm font-bold">{isRTL ? "لا توجد خلفية للوصفة" : "No Rx background set"}</p> </div> )}
+                            {currentBg ? ( <div className="bg-white dark:bg-gray-700 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 shadow-sm relative animate-fade-in"> <div className="flex justify-between items-center mb-4"> <h4 className="font-bold text-gray-700 dark:text-white flex items-center gap-2"> <Eye size={18} className="text-primary-500" /> {isRTL ? "خلفية الوصفة الحالية" : "Current Rx Background"} </h4> <button onClick={() => { handleRemoveRxBg?.(); }} className="p-2 bg-red-50 text-red-500 rounded-full hover:bg-red-500 hover:text-white transition shadow-sm" title={t.removeBg}> <Trash2 size={16} /> </button> </div> <div className="aspect-[1/1.4] max-h-64 mx-auto overflow-hidden rounded-xl border border-gray-100 dark:border-gray-600 bg-gray-50 dark:bg-gray-800 shadow-inner"> <img src={currentBg} alt="Background Preview" className="w-full h-full object-contain" /> </div> </div> ) : ( <div className="p-8 bg-gray-50 dark:bg-gray-900/50 rounded-[2.5rem] border-2 border-dashed border-gray-200 dark:border-gray-700 text-center opacity-60"> <Image size={40} className="mx-auto mb-2 text-gray-400" /> <p className="text-sm font-bold">{isRTL ? "لا توجد خلفية للوصفة" : "No Rx background set"}</p> </div> )}
                             <div className="p-8 bg-white dark:bg-gray-700 rounded-3xl border-2 border-dashed border-blue-200 dark:border-blue-800 text-center"> <div className="w-16 h-16 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner"> <Upload size={32} /> </div> <h4 className="text-xl font-bold text-gray-800 dark:text-white mb-2">{t.uploadRxBg}</h4> <p className="text-gray-500 dark:text-gray-400 mb-6 text-sm">{t.recSize}</p> <label className="inline-flex cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 rounded-xl font-bold transition shadow-lg shadow-blue-500/30 transform hover:-translate-y-1"> {t.upload} <input type="file" accept="image/*" className="hidden" onChange={(e) => { handleRxFileUpload(e); }} /> </label> </div>
                         </div>
                     )}
@@ -399,7 +397,7 @@ export const PatientQueriesModal = ({ show, onClose, t, currentLang, initialData
     return createPortal(
         <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" style={{ zIndex: 9999 }}>
             <div className={`bg-white dark:bg-gray-900 w-full max-w-2xl rounded-3xl shadow-2xl p-8 max-h-[85vh] flex flex-col ${fontClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
-                <div className="flex justify-between items-center mb-8 shrink-0"> <h3 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-3"> <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl"> <HelpCircle className="text-blue-600 dark:text-blue-400" size={24} /> </div> {t.dentalHistory} </h3> <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors"><X size={24} className="text-gray-400" /></button> </div>
+                <div className="flex justify-between items-center mb-8 shrink-0"> <h3 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-3"> <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-xl"> <HelpCircle className="text-blue-600 dark:text-blue-400" size={24} /> </div> {t.dentalHistory} </h3> <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"><X size={24} className="text-gray-400" /></button> </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-8">
                     {PATIENT_QUESTIONS_LIST.map((q) => {
                         const questionText = currentLang === 'ar' ? q.ar : currentLang === 'ku' ? q.ku : q.en;
@@ -409,5 +407,246 @@ export const PatientQueriesModal = ({ show, onClose, t, currentLang, initialData
                 <div className="mt-8 pt-6 border-t border-gray-100 dark:border-gray-800 shrink-0"> <button onClick={handleSave} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold text-lg shadow-xl shadow-blue-500/20 hover:bg-blue-700 hover:shadow-2xl hover:-translate-y-0.5 transition-all duration-300"> {t.save} </button> </div>
             </div>
         </div>, document.body
+    );
+};
+
+export const PrescriptionModal = ({ show, onClose, t, data, patient, currentLang, isRTL, handleSave, isSaving }: any) => {
+    const [medSearch, setMedSearch] = useState('');
+    const [rxMode, setRxMode] = useState<'write' | 'select'>('select');
+    const [addedMeds, setAddedMeds] = useState<Medication[]>([]);
+    const [medForm, setMedForm] = useState<Partial<Medication>>({ name: '', dose: '', form: '', frequency: '', notes: '' });
+    const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+    const [groupView, setGroupView] = useState<'groups' | 'meds'>('groups');
+    const fontClass = isRTL ? 'font-cairo' : 'font-sans';
+
+    useEffect(() => {
+        if (show) {
+            setAddedMeds([]);
+            setMedSearch('');
+            setRxMode('select');
+            setGroupView('groups');
+            setActiveGroupId(null);
+            setMedForm({ name: '', dose: '', form: '', frequency: '', notes: '' });
+        }
+    }, [show]);
+
+    if (!show) return null;
+
+    const filteredMedsForSearch = medSearch.trim() 
+        ? data.medications.filter((m: Medication) => m.name.toLowerCase().includes(medSearch.toLowerCase())) 
+        : [];
+
+    const handleAddFromSearch = (med: Medication) => {
+        setAddedMeds([...addedMeds, { ...med, id: generateId() }]);
+        setMedSearch('');
+    };
+
+    const handleAddManual = () => {
+        if (!medForm.name?.trim()) return;
+        setAddedMeds([...addedMeds, { ...medForm, id: generateId() } as Medication]);
+        setMedForm({ name: '', dose: '', form: '', frequency: '', notes: '' });
+    };
+
+    const handleSavePrescription = async () => {
+        if (addedMeds.length === 0) return;
+        const rx = {
+            id: generateId(),
+            date: new Date().toISOString(),
+            medications: addedMeds,
+            updatedAt: Date.now()
+        };
+        await handleSave(patient.id, { prescriptions: [rx, ...patient.prescriptions] });
+    };
+
+    return createPortal(
+        <div className="fixed inset-0 bg-black/60 z-[150] flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
+            <div className={`bg-white dark:bg-gray-900 w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col h-[85vh] overflow-hidden ${fontClass}`} dir={isRTL ? 'rtl' : 'ltr'}>
+                {/* Compact Header */}
+                <div className="px-5 py-4 shrink-0 bg-gradient-to-br from-primary-600 to-indigo-700 text-white flex justify-between items-center shadow-md">
+                    <div className="flex items-center gap-3">
+                        <div className="p-1.5 bg-white/20 rounded-xl backdrop-blur-md">
+                            <Pill size={22} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black tracking-tight leading-tight">{t.newPrescription}</h3>
+                            <p className="text-[9px] uppercase font-black tracking-widest opacity-70 leading-none">{patient.name}</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} disabled={isSaving} className="p-1.5 hover:bg-white/10 rounded-full transition-all active:scale-90 disabled:opacity-50">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6 space-y-6 bg-gray-50 dark:bg-gray-800">
+                    {/* 1. Global Search (Now inside scroll area) */}
+                    <div className="relative shrink-0">
+                        <div className="relative group">
+                            <Search className={`absolute top-1/2 -translate-y-1/2 ${isRTL ? 'right-4' : 'left-4'} text-gray-400 group-focus-within:text-primary-500 transition-colors`} size={20} />
+                            <input 
+                                value={medSearch} 
+                                onChange={(e) => setMedSearch(e.target.value)} 
+                                autoComplete="off" 
+                                className={`w-full ${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} py-3.5 rounded-2xl bg-white dark:bg-gray-700 border-2 border-transparent focus:border-primary-500 dark:text-white outline-none font-bold text-base shadow-sm transition-all`} 
+                                placeholder={t.searchMedications} 
+                            />
+                        </div>
+                        {medSearch.trim().length > 0 && (
+                            <div className="absolute top-full left-0 right-0 z-[160] mt-1 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 max-h-56 overflow-y-auto custom-scrollbar animate-scale-up">
+                                {filteredMedsForSearch.length > 0 ? (
+                                    filteredMedsForSearch.map(med => (
+                                        <button key={med.id} onClick={() => handleAddFromSearch(med)} className="w-full text-start p-4 hover:bg-primary-50 dark:hover:bg-primary-900/20 border-b last:border-0 border-gray-50 dark:border-gray-700 flex items-center justify-between group transition-all">
+                                            <div>
+                                                <div className="font-bold text-gray-800 dark:text-white text-base group-hover:text-primary-600">{med.name}</div>
+                                                <div className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{med.dose} • {med.form} • {med.frequency}</div>
+                                            </div>
+                                            <Plus size={18} className="text-primary-200 group-hover:text-primary-600 transition-transform group-hover:rotate-90" />
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="p-6 text-center text-gray-400 font-bold italic text-sm">{t.noMedicationsFound}</div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* 2. Mode Toggle Buttons (Select is first and default) */}
+                    <div className="flex bg-white dark:bg-gray-700 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-gray-600 shrink-0">
+                        <button 
+                            onClick={() => setRxMode('select')} 
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${rxMode === 'select' ? 'bg-primary-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            <LayoutGrid size={16} /> {t.selectMedication}
+                        </button>
+                        <button 
+                            onClick={() => setRxMode('write')} 
+                            className={`flex-1 py-2.5 rounded-lg text-sm font-black transition-all flex items-center justify-center gap-2 ${rxMode === 'write' ? 'bg-primary-600 text-white shadow-lg' : 'text-gray-400 hover:text-gray-600'}`}
+                        >
+                            <Edit2 size={16} /> {t.writeMedication}
+                        </button>
+                    </div>
+
+                    {/* 3. Conditional Area (Form or Select) */}
+                    <div className="animate-fade-in">
+                        {rxMode === 'write' ? (
+                            <div className="flex flex-col space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase ms-2 tracking-widest">{t.drugName} *</label>
+                                        <input value={medForm.name} onChange={e => setMedForm({...medForm, name: e.target.value})} className="w-full p-3.5 rounded-xl bg-white dark:bg-gray-700 border-2 border-transparent focus:border-primary-500 outline-none font-bold shadow-sm text-sm" placeholder={t.drugName} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase ms-2 tracking-widest">{t.dose}</label>
+                                        <input value={medForm.dose} onChange={e => setMedForm({...medForm, dose: e.target.value})} className="w-full p-3.5 rounded-xl bg-white dark:bg-gray-700 border-2 border-transparent focus:border-primary-500 outline-none font-bold shadow-sm text-sm text-end" dir="ltr" placeholder="500mg" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase ms-2 tracking-widest">{t.form}</label>
+                                        <input value={medForm.form} onChange={e => setMedForm({...medForm, form: e.target.value})} className="w-full p-3.5 rounded-xl bg-white dark:bg-gray-700 border-2 border-transparent focus:border-primary-500 outline-none font-bold shadow-sm text-sm" placeholder="Tab, Cap, Syrup..." />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-[9px] font-black text-gray-400 uppercase ms-2 tracking-widest">{t.frequency}</label>
+                                        <input value={medForm.frequency} onChange={e => setMedForm({...medForm, frequency: e.target.value})} className="w-full p-3.5 rounded-xl bg-white dark:bg-gray-700 border-2 border-transparent focus:border-primary-500 outline-none font-bold shadow-sm text-sm text-end" dir="ltr" placeholder="1 x 3" />
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[9px] font-black text-gray-400 uppercase ms-2 tracking-widest">{t.medNotes}</label>
+                                    <input value={medForm.notes} onChange={e => setMedForm({...medForm, notes: e.target.value})} className="w-full p-3.5 rounded-xl bg-white dark:bg-gray-700 border-2 border-transparent focus:border-primary-500 outline-none font-medium shadow-sm text-sm" placeholder={t.medNotes} />
+                                </div>
+                                <button 
+                                    onClick={handleAddManual}
+                                    disabled={!medForm.name?.trim()}
+                                    className="w-full py-4 bg-indigo-600 text-white font-black rounded-xl shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50 text-sm"
+                                >
+                                    <PlusCircle size={18} /> {t.addMedication}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="p-1">
+                                {groupView === 'groups' ? (
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {(data.medicationCategories || []).map(cat => (
+                                            <button 
+                                                key={cat.id} 
+                                                onClick={() => { setActiveGroupId(cat.id); setGroupView('meds'); }} 
+                                                className="p-5 bg-white dark:bg-gray-700 rounded-2xl border-2 border-transparent hover:border-primary-400 shadow-sm transition-all flex flex-col items-center gap-2 text-center group"
+                                            >
+                                                <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform"><Folder size={24}/></div>
+                                                <span className="font-black text-gray-800 dark:text-white text-xs leading-tight">{cat.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-3">
+                                        <button onClick={() => setGroupView('groups')} className="mb-4 flex items-center gap-2 text-primary-600 font-black text-xs uppercase tracking-widest hover:underline">
+                                            <ArrowLeft size={14} className="rtl:rotate-180" /> {t.back}
+                                        </button>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {data.medications.filter((m: Medication) => m.categoryId === activeGroupId).map(med => (
+                                                <button 
+                                                    key={med.id} 
+                                                    onClick={() => setAddedMeds([...addedMeds, { ...med, id: generateId() }])}
+                                                    className="w-full flex items-center justify-between p-3.5 bg-white dark:bg-gray-700 rounded-xl border border-transparent hover:border-primary-300 transition-all group shadow-sm text-start"
+                                                >
+                                                    <div>
+                                                        <div className="font-bold text-gray-800 dark:text-white text-sm">{med.name}</div>
+                                                        <div className="text-[9px] text-gray-400 font-black uppercase tracking-tight" dir="ltr">{med.dose} • {med.form} • {med.frequency}</div>
+                                                    </div>
+                                                    <Plus size={18} className="text-primary-300 group-hover:text-primary-600" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* 4. Added Meds Summary & Footer Save Button (Fixed) */}
+                <div className="shrink-0 flex flex-col">
+                    {addedMeds.length > 0 && (
+                        <div className="bg-white dark:bg-gray-700 px-5 py-3 border-t border-gray-100 dark:border-gray-800 shadow-inner">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em]">{t.rxList}</span>
+                                <span className="bg-primary-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">{addedMeds.length}</span>
+                            </div>
+                            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                                {addedMeds.map((med, idx) => (
+                                    <div key={med.id} className="flex items-center gap-2 bg-primary-50 dark:bg-primary-900/30 px-3 py-2 rounded-xl border border-primary-100 dark:border-primary-800 animate-scale-up shrink-0">
+                                        <div className="text-start">
+                                            <div className="font-black text-primary-900 dark:text-primary-100 text-[11px] leading-none mb-0.5">{med.name}</div>
+                                            <div className="text-[8px] text-primary-600/80 font-bold leading-none">{med.dose} • {med.frequency}</div>
+                                        </div>
+                                        <button onClick={() => setAddedMeds(addedMeds.filter((_, i) => i !== idx))} className="p-1 text-red-500 bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:scale-110 transition-transform">
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="p-5 md:p-6 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800">
+                        <button 
+                            onClick={handleSavePrescription}
+                            disabled={isSaving || addedMeds.length === 0}
+                            className="w-full py-4 bg-primary-600 text-white font-black text-lg rounded-2xl shadow-xl shadow-primary-500/40 hover:bg-primary-700 transition-all transform active:scale-95 disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-3"
+                        >
+                            {isSaving ? (
+                                <>
+                                    <Loader2 size={20} className="animate-spin" />
+                                    <span>{isRTL ? "جاري الحفظ..." : "Saving..."}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 size={20} />
+                                    <span>{t.save}</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>,
+        document.body
     );
 };

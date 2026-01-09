@@ -1,4 +1,3 @@
-
 import { PatientCategory, Language, Theme } from './types';
 
 export const THEMES: Theme[] = [
@@ -225,7 +224,7 @@ export const PATIENT_QUESTIONS_LIST = [
 export const PRICING_PLANS = [
   { 
     id: '1mo', 
-    price: 1.99, 
+    price: 3, 
     originalPrice: null,
     durationEn: '/ Month', durationAr: '/ شهر', durationKu: '/ مانگ', 
     labelEn: 'Monthly', labelAr: 'شهري', labelKu: 'مانگانە',
@@ -234,13 +233,12 @@ export const PRICING_PLANS = [
         { en: 'Cloud Sync', ar: 'مزامنة سحابية', ku: 'هاوکاتکردنی هەوری' },
         { en: '24/7 Support', ar: 'دعم فني', ku: 'پاڵپشتی ٢٤/٧' },
         { en: 'Unlimited Devices', ar: 'عدد غير محدود من الاجهزة', ku: 'ژمارەی بێسنوور لە ئامێرەکان' },
-        { en: 'Free Rx Design', ar: 'تصميم وصفة طبية مجاني', ku: 'دیزايني ڕەچەتة بەخۆڕایی' },
     ]
   },
   { 
     id: '3mo', 
-    price: 4.99, 
-    originalPrice: 6,
+    price: 7, 
+    originalPrice: 9,
     durationEn: '/ 3 Months', durationAr: '/ 3 أشهر', durationKu: '/ ٣ مانگ',
     labelEn: 'Quarterly', labelAr: '3 أشهر', labelKu: '٣ مانگ',
     features: [
@@ -248,13 +246,12 @@ export const PRICING_PLANS = [
         { en: 'Cloud Sync', ar: 'مزامنة سحابية', ku: 'هاوکاتکردنی هەوری' },
         { en: '24/7 Support', ar: 'دعم فني', ku: 'پاڵپشتی ٢٤/٧' },
         { en: 'Unlimited Devices', ar: 'عدد غير محدود من الاجهزة', ku: 'ژمارەی بێسنوور لە ئامێرەکان' },
-        { en: 'Free Rx Design', ar: 'تصميم وصفة طبية مجاني', ku: 'دیزاینی ڕەچەتة بەخۆڕایی' },
     ]
   },
   { 
     id: '6mo', 
-    price: 8.99, 
-    originalPrice: 12,
+    price: 11, 
+    originalPrice: 18,
     durationEn: '/ 6 Months', durationAr: '/ 6 أشهر', durationKu: '/ ٦ مانگ',
     labelEn: 'Bi-Yearly', labelAr: '6 أشهر', labelKu: '٦ مانگ',
     features: [
@@ -262,14 +259,13 @@ export const PRICING_PLANS = [
         { en: 'Cloud Sync', ar: 'مزامنة سحابية', ku: 'هاوکاتکردنی هەوری' },
         { en: '24/7 Support', ar: 'دعم فني', ku: 'پاڵپشتی ٢٤/٧' },
         { en: 'Unlimited Devices', ar: 'عدد غير محدود من الاجهزة', ku: 'ژمارەی بێسنوور لە ئامێرەکان' },
-        { en: 'Free Rx Design', ar: 'تصميم وصفة طبية مجاني', ku: 'دیزايني ڕەچەتة بەخۆڕایی' },
         { en: 'Free Consent Form Design', ar: 'تصميم ورقة موافقة عمل مجاني', ku: 'دیزايني فۆرمی ڕەزامەندي بەخۆڕایی' },
     ]
   },
   { 
     id: '1yr', 
-    price: 14.99, 
-    originalPrice: 24,
+    price: 15, 
+    originalPrice: 36,
     durationEn: '/ Year', durationAr: '/ سنة', durationKu: '/ ساڵانە',
     labelEn: 'Yearly', labelAr: 'سنوي', labelKu: 'ساڵانە',
     features: [
@@ -277,7 +273,7 @@ export const PRICING_PLANS = [
         { en: 'Cloud Sync', ar: 'مزامنة سحابية', ku: 'هاوکاتکردنی هەوری' },
         { en: '24/7 Support', ar: 'دعم فني', ku: 'پاڵپشتی ٢٤/٧' },
         { en: 'Unlimited Devices', ar: 'عدد غير محدود من الاجهزة', ku: 'ژمارەی بێسنوور لە ئامێرەکان' },
-        { en: '3 Free Rx Designs', ar: '3 تصاميم وصفة طبية مجانية', ku: '٣ ديزايني ڕەچەتة بەخۆڕایی' },
+        { en: 'Free Rx Design', ar: 'تصميم وصفة طبية مجاني', ku: 'دیزايني ڕەچەتة بەخۆڕایی' },
         { en: 'Free Consent Form Design', ar: 'تصميم ورقة موافقة عمل مجانية', ku: 'دیزايني فۆرمي ڕەزامەندي بەخۆڕایی' },
     ]
   },

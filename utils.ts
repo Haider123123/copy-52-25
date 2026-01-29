@@ -108,13 +108,22 @@ export const openWhatsApp = (phoneCode: string = '', phone: string = '') => {
 /**
  * نظام الدمج الذكي الدقيق (Granular Merge)
  * يمنع فقدان البيانات عبر دمج التعديلات على مستوى العنصر وليس الكائن الكامل
- * مضاف إليه نظام الـ Tombstone لمنع عودة المحذوفات
  */
 export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData => {
     if (!remote || !remote.clinicName) return local;
     if (!local || !local.clinicName) return remote;
 
-    // 1. دمج قوائم المعرفات المحذوفة (Tombstones)
+    // Preserve local-only background images before merging
+    const localRxBg = local.settings.rxBackgroundImage;
+    const localConsentBg = local.settings.consentBackgroundImage;
+    const localInstructionsBg = local.settings.instructionsBackgroundImage;
+    
+    // Create a map of local doctor background images
+    const localDocBgs = new Map();
+    (local.doctors || []).forEach(d => {
+        if (d.rxBackgroundImage) localDocBgs.set(d.id, d.rxBackgroundImage);
+    });
+
     const combinedDeletedIds = Array.from(new Set([
         ...(local.deletedIds || []),
         ...(remote.deletedIds || [])
@@ -181,7 +190,7 @@ export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData
         return purgeDeleted(Array.from(mergedMap.values()));
     };
 
-    return {
+    const finalResult: ClinicData = {
         ...((local.lastUpdated || 0) >= (remote.lastUpdated || 0) ? local : remote),
         patients: mergePatients(local.patients, remote.patients),
         memos: mergeArrayById(local.memos || [], remote.memos || []),
@@ -190,7 +199,24 @@ export const granularMerge = (local: ClinicData, remote: ClinicData): ClinicData
         labOrders: mergeArrayById(local.labOrders || [], remote.labOrders || []),
         doctors: mergeArrayById(local.doctors || [], remote.doctors || []),
         secretaries: mergeArrayById(local.secretaries || [], remote.secretaries || []),
-        deletedIds: combinedDeletedIds, // حفظ قائمة المحذوفات المدمجة
+        deletedIds: combinedDeletedIds,
         lastUpdated: Math.max(local.lastUpdated || 0, remote.lastUpdated || 0)
     };
+
+    // RESTORE PROTECTED FIELDS: Background images are local-only
+    if (finalResult.settings) {
+        if (localRxBg) finalResult.settings.rxBackgroundImage = localRxBg;
+        if (localConsentBg) finalResult.settings.consentBackgroundImage = localConsentBg;
+        if (localInstructionsBg) finalResult.settings.instructionsBackgroundImage = localInstructionsBg;
+    }
+    
+    // Restore doctor-specific backgrounds
+    if (finalResult.doctors) {
+        finalResult.doctors = finalResult.doctors.map(d => ({
+            ...d,
+            rxBackgroundImage: localDocBgs.get(d.id) || d.rxBackgroundImage || ""
+        }));
+    }
+
+    return finalResult;
 };

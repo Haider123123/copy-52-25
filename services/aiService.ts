@@ -1,56 +1,47 @@
-
 import { GoogleGenAI } from "@google/genai";
 
-// الموضع المميز للمفاتيح لسهولة التبديل مستقبلاً
-const AI_KEYS = [
-  'AIzaSyCCCEHh-17VpcgrJM4TCVaX7nT1Otdhslw', // Key 1 (Primary)
-  'AIzaSyCs3DM3c0-BJEBSCSwwv0l8vuNwZsetD3U'  // Key 2 (Fallback)
-];
-
-// استخدام Gemini 3 Flash حسب تعليمات النظام (وهو الترقية لـ 1.5 فلاش المطلوبة)
-const AI_MODEL = 'gemini-3-flash-preview';
-
+/**
+ * خدمة الذكاء الاصطناعي للحصول على الرؤى السريرية.
+ * تلتزم هذه الخدمة باستخدام المفتاح البرمجي من متغيرات البيئة فقط لضمان الأمان والاستقرار.
+ */
 export const aiService = {
   generateInsights: async (prompt: string): Promise<string> => {
-    let lastError: any = null;
-
-    for (const apiKey of AI_KEYS) {
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-          model: AI_MODEL,
-          contents: prompt,
-          config: {
-             temperature: 0.7,
-             topP: 0.8,
-             topK: 40
-          }
-        });
-
-        if (response && response.text) {
-          return response.text;
+    // تهيئة العميل عند الاستدعاء لضمان استخدام أحدث تكوين للمفتاح البرمجي
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          // تعليمات النظام لضمان مخرجات طبية احترافية
+          systemInstruction: "You are a senior dental consultant. Analyze the following patient data and provide: 1) Potential diagnosis, 2) Recommended treatment plan, 3) Medical alerts if any. Keep it professional and concise. Always respond in the language of the prompt or Arabic/English as appropriate.",
+          temperature: 0.7,
+          topP: 0.8,
+          topK: 40
         }
+      });
+
+      if (!response || !response.text) {
         throw new Error("Empty AI response");
-      } catch (error: any) {
-        lastError = error;
-        const errorMsg = error.toString().toLowerCase();
-        
-        // التحقق مما إذا كان الخطأ متعلقاً بالقيود أو الحصة (Quota)
-        const isQuotaError = errorMsg.includes('429') || 
-                             errorMsg.includes('quota') || 
-                             errorMsg.includes('rate limit') ||
-                             errorMsg.includes('exhausted');
-
-        if (isQuotaError) {
-          console.warn(`AI Key limit reached, trying next key...`);
-          continue; // تجربة المفتاح التالي
-        }
-        
-        // إذا كان خطأ آخر غير الكوتا، نتوقف ونعرضه
-        throw error;
       }
-    }
 
-    throw lastError || new Error("All AI Keys failed");
+      return response.text;
+    } catch (error: any) {
+      console.error("Gemini AI Service Error:", error);
+      
+      const errorMsg = error.toString().toLowerCase();
+      
+      // معالجة أخطاء المصادقة أو الحصص البرمجية
+      if (errorMsg.includes('401') || errorMsg.includes('key')) {
+        throw new Error("فشل في المصادقة مع خدمة الذكاء الاصطناعي. يرجى التأكد من إعدادات النظام.");
+      }
+      
+      if (errorMsg.includes('429') || errorMsg.includes('quota')) {
+        throw new Error("تم الوصول للحد الأقصى من الطلبات حالياً. يرجى المحاولة بعد قليل.");
+      }
+
+      throw new Error("حدث خطأ أثناء معالجة البيانات بالذكاء الاصطناعي.");
+    }
   }
 };

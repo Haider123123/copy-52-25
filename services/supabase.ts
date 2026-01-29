@@ -71,16 +71,8 @@ export const supabaseService = {
     const row = data[0];
     const content = row.content || {};
     
-    if (row['RX json']) {
-        const rxData = row['RX json'];
-        if (rxData && rxData.image) {
-            if (!content.settings) content.settings = { ...INITIAL_DATA.settings };
-            content.settings.rxBackgroundImage = rxData.image;
-        }
-    } else if (row.rx && typeof row.rx === 'string') {
-        if (!content.settings) content.settings = { ...INITIAL_DATA.settings };
-        content.settings.rxBackgroundImage = row.rx;
-    }
+    // Note: Background images are intentionally not loaded from cloud anymore
+    // they are managed locally by the granularMerge utility.
 
     const cloudTimestamp = content.lastUpdated || 0;
 
@@ -95,19 +87,32 @@ export const supabaseService = {
     const user = await supabaseService.getUser();
     if (!user) return;
 
-    const dataToSave = {
-        ...clinicData,
-        lastUpdated: Date.now()
-    };
+    // Create a deep copy to modify for cloud saving
+    const dataToSave = JSON.parse(JSON.stringify(clinicData));
+    
+    // STRIP BACKGROUND IMAGES: Local-only storage requested
+    if (dataToSave.settings) {
+        dataToSave.settings.rxBackgroundImage = "";
+        dataToSave.settings.consentBackgroundImage = "";
+        dataToSave.settings.instructionsBackgroundImage = "";
+    }
+    
+    // Also strip from doctor profiles
+    if (dataToSave.doctors) {
+        dataToSave.doctors = dataToSave.doctors.map((doc: any) => ({
+            ...doc,
+            rxBackgroundImage: ""
+        }));
+    }
+
+    dataToSave.lastUpdated = Date.now();
 
     const payload = {
         user_id: user.id,
         content: dataToSave,
-        "RX json": { image: clinicData.settings.rxBackgroundImage }
+        // Removed "RX json" as we store it locally only now
     };
 
-    // Manual 'Upsert' logic to avoid reliance on unique constraints that might be missing in DB
-    // Step 1: Check for existing record
     const { data: existingRows, error: fetchError } = await supabase
         .from('user_data')
         .select('id')
@@ -122,14 +127,12 @@ export const supabaseService = {
 
     let saveError;
     if (existingRows && existingRows.length > 0) {
-        // Step 2a: Update existing row
         const { error: updateError } = await supabase
             .from('user_data')
             .update(payload)
             .eq('id', existingRows[0].id);
         saveError = updateError;
     } else {
-        // Step 2b: Insert new row
         const { error: insertError } = await supabase
             .from('user_data')
             .insert(payload);

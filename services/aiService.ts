@@ -1,47 +1,56 @@
+
 import { GoogleGenAI } from "@google/genai";
 
 /**
  * خدمة الذكاء الاصطناعي للحصول على الرؤى السريرية.
- * تلتزم هذه الخدمة باستخدام المفتاح البرمجي من متغيرات البيئة فقط لضمان الأمان والاستقرار.
+ * مصممة للعمل في البيئات المحلية والخارجية عبر متغيرات البيئة.
  */
 export const aiService = {
   generateInsights: async (prompt: string): Promise<string> => {
-    // تهيئة العميل عند الاستدعاء لضمان استخدام أحدث تكوين للمفتاح البرمجي
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // التحقق من وجود المفتاح البرمجي
+    const apiKey = process.env.API_KEY;
+    
+    if (!apiKey || apiKey === 'undefined') {
+      throw new Error("API Key is missing. Please configure your environment variables (API_KEY) on your hosting provider.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
     
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
-          // تعليمات النظام لضمان مخرجات طبية احترافية
-          systemInstruction: "You are a senior dental consultant. Analyze the following patient data and provide: 1) Potential diagnosis, 2) Recommended treatment plan, 3) Medical alerts if any. Keep it professional and concise. Always respond in the language of the prompt or Arabic/English as appropriate.",
+          systemInstruction: "You are a world-class senior dental consultant. Analyze the provided patient data (Medical history, dental chart, and clinical notes) and provide professional insights including: 1) Potential diagnosis, 2) Recommended immediate actions, 3) Long-term treatment plan suggestions, 4) Urgent medical alerts. Be concise, professional, and use the language of the provided prompt.",
           temperature: 0.7,
-          topP: 0.8,
+          topP: 0.9,
           topK: 40
         }
       });
 
       if (!response || !response.text) {
-        throw new Error("Empty AI response");
+        throw new Error("The AI returned an empty response. Please try again.");
       }
 
       return response.text;
     } catch (error: any) {
       console.error("Gemini AI Service Error:", error);
       
-      const errorMsg = error.toString().toLowerCase();
+      const errorStr = error.toString().toLowerCase();
       
-      // معالجة أخطاء المصادقة أو الحصص البرمجية
-      if (errorMsg.includes('401') || errorMsg.includes('key')) {
-        throw new Error("فشل في المصادقة مع خدمة الذكاء الاصطناعي. يرجى التأكد من إعدادات النظام.");
+      if (errorStr.includes('401') || errorStr.includes('key')) {
+        throw new Error("خطأ في المصادقة: مفتاح الـ API غير صالح أو غير مهيأ بشكل صحيح على الاستضافة.");
       }
       
-      if (errorMsg.includes('429') || errorMsg.includes('quota')) {
-        throw new Error("تم الوصول للحد الأقصى من الطلبات حالياً. يرجى المحاولة بعد قليل.");
+      if (errorStr.includes('429')) {
+        throw new Error("تم تجاوز حد الطلبات المسموح به. يرجى الانتظار دقيقة والمحاولة مرة أخرى.");
       }
 
-      throw new Error("حدث خطأ أثناء معالجة البيانات بالذكاء الاصطناعي.");
+      if (errorStr.includes('fetch') || errorStr.includes('network')) {
+        throw new Error("مشكلة في الاتصال بالشبكة. تأكد من أن الاستضافة تسمح بالاتصال بخوادم Google API.");
+      }
+
+      throw new Error("حدث خطأ تقني أثناء تحليل البيانات. يرجى مراجعة إعدادات الاستضافة.");
     }
   }
 };

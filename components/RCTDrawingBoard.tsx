@@ -134,8 +134,12 @@ export const RCTDrawingBoard: React.FC<RCTDrawingBoardProps> = ({ t, initialDraw
         img.onload = () => {
             ctx.save();
             ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalCompositeOperation = 'source-over'; // Ensure we can clear properly
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.restore();
+            
+            // CRITICAL FIX: Ensure operation is source-over BEFORE drawing the history image
+            ctx.globalCompositeOperation = 'source-over';
             ctx.drawImage(img, 0, 0, canvasSize.width, canvasSize.height);
         };
     };
@@ -270,8 +274,12 @@ export const RCTDrawingBoard: React.FC<RCTDrawingBoardProps> = ({ t, initialDraw
         } else {
             ctx.save();
             ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalCompositeOperation = 'source-over';
             ctx.clearRect(0, 0, drawingCanvasRef.current!.width, drawingCanvasRef.current!.height);
             ctx.restore();
+            
+            // CRITICAL FIX: Ensure operation is source-over BEFORE redrawing history and temporary shape
+            ctx.globalCompositeOperation = 'source-over';
             const img = new Image();
             img.src = history[historyStep];
             ctx.drawImage(img, 0, 0, canvasSize.width, canvasSize.height);
@@ -291,8 +299,10 @@ export const RCTDrawingBoard: React.FC<RCTDrawingBoardProps> = ({ t, initialDraw
         if (!ctx) return;
         ctx.save();
         ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.globalCompositeOperation = 'source-over';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.restore();
+        ctx.globalCompositeOperation = 'source-over'; // Reset to safe mode after clear
         saveToHistory();
     };
 

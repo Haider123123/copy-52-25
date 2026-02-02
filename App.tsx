@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Menu, X, Plus, Search, Trash2, Pill, WifiOff, LayoutDashboard, RefreshCw, AlertCircle, CloudCheck, Cloud, LayoutGrid, Folder, ChevronLeft, ArrowLeft, CheckCircle2, Smartphone } from 'lucide-react';
 import { ClinicData, Doctor, Secretary, Patient, Appointment, Payment, Tooth, RootCanalEntry, Memo, Prescription, Medication, SupplyItem, ExpenseItem, TodoItem, ToothSurfaces, LabOrder, InventoryItem, ToothNote, Language, MemoStyle, Examination, MedicalConditionItem, PatientQueryAnswer, MedicationCategory } from './types';
@@ -763,13 +764,17 @@ export default function App() {
             ? (data.memos || []).map(m => m.id === selectedMemo.id ? { ...m, title, content, color, type, todos, style, updatedAt: ts } : m)
             : [{ id: generateId(), title, content, color, type, todos, date: new Date().toISOString(), style, updatedAt: ts }, ...(data.memos || [])]
     };
+    
+    // Save locally immediately
     setData(newData);
     storageService.saveData(newData);
-    const success = await syncToCloud(newData);
-    if (success) {
-        setShowMemoModal(false); 
-        setSelectedMemo(null);
-    }
+    
+    // Close modal right away for instant feedback
+    setShowMemoModal(false); 
+    setSelectedMemo(null);
+    
+    // Attempt cloud sync in the background
+    syncToCloud(newData);
   };
 
   useEffect(() => {

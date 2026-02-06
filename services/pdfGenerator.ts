@@ -1,3 +1,4 @@
+
 import { PDFDocument, rgb, PDFFont, PDFPage, degrees } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { ClinicData, Patient, Prescription, Payment, Appointment, Examination } from '../types';
@@ -38,7 +39,7 @@ const loadResources = async () => {
 
 const hexToPdfColor = (hex: string) => {
     if (!hex) return COLORS.primary;
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    const result = /^#?([a-f\d])([a-f\d])([a-f\d])$/i.exec(hex);
     return result ? rgb(
         parseInt(result[1], 16) / 255,
         parseInt(result[2], 16) / 255,
@@ -134,13 +135,30 @@ export const generateRxPdf = async (data: ClinicData, patient: Patient, rx: Pres
 
     if (bgImageBase64) {
         try {
-            let imageBytes; let imageType;
-            if (bgImageBase64.startsWith('data:image/png')) { imageBytes = bgImageBase64; imageType = 'png'; }
-            else if (bgImageBase64.startsWith('data:image/jpeg')) { imageBytes = bgImageBase64; imageType = 'jpg'; }
-            else { const imgRes = await fetch(bgImageBase64); const imgBlob = await imgRes.blob(); imageBytes = await imgBlob.arrayBuffer(); imageType = imgBlob.type === 'image/png' ? 'png' : 'jpg'; }
-            const bgImage = imageType === 'png' ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
-            page.drawImage(bgImage, { x: 0, y: 0, width, height });
-        } catch (e) { console.error("Failed to load background image", e); }
+            if (bgImageBase64.startsWith('data:application/pdf')) {
+                // Handle PDF Background
+                const pdfBase64 = bgImageBase64.split(',')[1];
+                const pdfBytes = Uint8Array.from(atob(pdfBase64), c => c.charCodeAt(0));
+                const bgPdf = await PDFDocument.load(pdfBytes);
+                const [bgPage] = await pdfDoc.embedPdf(bgPdf, [0]); // Embed first page
+                page.drawPage(bgPage, { x: 0, y: 0, width, height });
+            } else {
+                // Handle Image Background
+                let imageBytes; let imageType;
+                if (bgImageBase64.startsWith('data:image/png')) { imageBytes = bgImageBase64; imageType = 'png'; }
+                else if (bgImageBase64.startsWith('data:image/jpeg')) { imageBytes = bgImageBase64; imageType = 'jpg'; }
+                else { 
+                    const imgRes = await fetch(bgImageBase64); 
+                    const imgBlob = await imgRes.blob(); 
+                    imageBytes = await imgBlob.arrayBuffer(); 
+                    imageType = imgBlob.type === 'image/png' ? 'png' : 'jpg'; 
+                }
+                const bgImage = imageType === 'png' ? await pdfDoc.embedPng(imageBytes) : await pdfDoc.embedJpg(imageBytes);
+                page.drawImage(bgImage, { x: 0, y: 0, width, height });
+            }
+        } catch (e) { 
+            console.error("Failed to load background", e); 
+        }
     }
 
     let y = height - customTopMargin;

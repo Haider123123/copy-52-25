@@ -538,7 +538,15 @@ export default function App() {
     try {
         const result = await supabaseService.signIn(loginEmail, loginPassword);
         if (result.error) setAuthError(result.error.message); else {
-            const cloudData = await supabaseService.loadData();
+            let cloudData = await supabaseService.loadData();
+            
+            // إذا كان الحساب جديداً (لا توجد بيانات سحابية)، قم بإنشاء السجل الأول
+            if (!cloudData) {
+                const initial = { ...INITIAL_DATA, settings: { ...INITIAL_DATA.settings, isLoggedIn: true } };
+                await supabaseService.saveData(initial);
+                cloudData = initial;
+            }
+
             if (cloudData) {
                 const newData = mergeDataWithLocalPrefs(cloudData); 
                 newData.settings.isLoggedIn = true;
@@ -874,7 +882,7 @@ export default function App() {
          <div className="p-4 md:p-8 pb-20 max-w-7xl mx-auto">
              {currentView === 'dashboard' && !activeSecretaryId && <DashboardView t={currentT} data={data} allAppointments={allAppointments} setData={setData} activeDoctorId={activeDoctorId} setSelectedPatientId={handleOpenPatient} setCurrentView={setCurrentView} setPatientTab={setPatientTab} />}
              {currentView === 'patients' && !selectedPatientId && <PatientsView t={currentT} data={filteredData} isRTL={isRTL} currentLang={deviceLang} setSelectedPatientId={handleOpenPatient} setPatientTab={setPatientTab} setCurrentView={setCurrentView} setShowNewPatientModal={(val) => handleOpenModal(() => { setShowNewPatientModal(val); setOpError(null); })} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} searchQuery={searchQuery} setSearchQuery={setSearchQuery} onAddAppointment={(pid) => { setApptPatientId(pid); handleOpenModal(() => setShowAppointmentModal(true)); }} />}
-             {currentView === 'patients' && selectedPatientId && activePatient && <PatientDetails t={currentT} data={data} setData={setData} activePatient={activePatient} patientTab={patientTab} setPatientTab={setPatientTab} setSelectedPatientId={setSelectedPatientId} currentLang={deviceLang} isRTL={isRTL} updatePatient={updatePatient} handleDeletePatient={handleDeletePatientAsync} handleUpdateTooth={handleUpdateTooth} handleUpdateToothSurface={handleUpdateToothSurface} handleUpdateToothNote={handleUpdateToothNote} handleUpdateHead={()=>{}} handleUpdateBody={()=>{}} handleAddRCT={(pid, rct) => updatePatient(pid, { rootCanals: [...(activePatient.rootCanals || []), { ...rct, id: generateId(), updatedAt: Date.now() }] })} handleDeleteRCT={handleDeleteRCTAsync} handleDeleteAppointment={handleDeleteAppointmentAsync} handleUpdateAppointmentStatus={handleUpdateAppointmentStatusAsync} handleDeleteRx={(rxid) => handleDeleteRxAsync(activePatient.id, rxid)} setPrintingRx={setPrintingRx} setPrintingPayment={setPrintingPayment} setPrintingAppointment={setPrintingAppointment} setPrintingExamination={setPrintingExamination} handleRxFileUpload={handleRxFileUpload} handleRemoveRxBg={handleRemoveRxBg} setShowEditPatientModal={(val) => handleOpenModal(() => { setShowEditPatientModal(val); setOpError(null); })} setShowAppointmentModal={(val) => handleOpenModal(() => { setShowAppointmentModal(val); setOpError(null); })} setSelectedAppointment={setSelectedAppointment} setAppointmentMode={setAppointmentMode} 
+             {currentView === 'patients' && selectedPatientId && activePatient && <PatientDetails t={currentT} data={data} setData={setData} activePatient={activePatient} patientTab={patientTab} setPatientTab={setPatientTab} setSelectedPatientId={setSelectedPatientId} currentLang={deviceLang} isRTL={isRTL} updatePatient={updatePatient} handleDeletePatient={handleDeletePatientAsync} handleUpdateTooth={handleUpdateTooth} handleUpdateToothSurface={handleUpdateToothSurface} handleUpdateToothNote={handleUpdateToothNote} handleUpdateHead={()=>{}} handleUpdateBody={()=>{}} handleAddRCT={(pid, rct) => updatePatient(pid, { rootCanals: [...(activePatient.rootCanals || []), { ...rct, id: generateId(), updatedAt: Date.now() }] })} handleDeleteRCT={handleDeleteRCTAsync} handleUpdateAppointmentStatus={handleUpdateAppointmentStatusAsync} handleDeleteRx={(rxid) => handleDeleteRxAsync(activePatient.id, rxid)} setPrintingRx={setPrintingRx} setPrintingPayment={setPrintingPayment} setPrintingAppointment={setPrintingAppointment} setPrintingExamination={setPrintingExamination} handleRxFileUpload={handleRxFileUpload} handleRemoveRxBg={handleRemoveRxBg} setShowEditPatientModal={(val) => handleOpenModal(() => { setShowEditPatientModal(val); setOpError(null); })} setShowAppointmentModal={(val) => handleOpenModal(() => { setShowAppointmentModal(val); setOpError(null); })} setSelectedAppointment={setSelectedAppointment} setAppointmentMode={setAppointmentMode} 
                 setShowPaymentModal={(val) => handleOpenModal(() => { setShowPaymentModal(val); setOpError(null); })} 
                 setPaymentType={setPaymentType} 
                 setSelectedPayment={setSelectedPayment}

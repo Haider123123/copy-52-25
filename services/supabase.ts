@@ -65,15 +65,11 @@ export const supabaseService = {
     }
 
     if (!data || data.length === 0) {
-      return INITIAL_DATA;
+      return null; // نعيد null لنعرف أن الحساب جديد تماماً
     }
 
     const row = data[0];
     const content = row.content || {};
-    
-    // Note: Background images are intentionally not loaded from cloud anymore
-    // they are managed locally by the granularMerge utility.
-
     const cloudTimestamp = content.lastUpdated || 0;
 
     return { 
@@ -87,17 +83,16 @@ export const supabaseService = {
     const user = await supabaseService.getUser();
     if (!user) return;
 
-    // Create a deep copy to modify for cloud saving
+    // نسخة عميقة لتعديلها قبل الحفظ
     const dataToSave = JSON.parse(JSON.stringify(clinicData));
     
-    // STRIP BACKGROUND IMAGES: Local-only storage requested
+    // إزالة الصور الخلفية (تخزن محلياً فقط حسب الطلب السابق)
     if (dataToSave.settings) {
         dataToSave.settings.rxBackgroundImage = "";
         dataToSave.settings.consentBackgroundImage = "";
         dataToSave.settings.instructionsBackgroundImage = "";
     }
     
-    // Also strip from doctor profiles
     if (dataToSave.doctors) {
         dataToSave.doctors = dataToSave.doctors.map((doc: any) => ({
             ...doc,
@@ -107,42 +102,20 @@ export const supabaseService = {
 
     dataToSave.lastUpdated = Date.now();
 
-    const payload = {
-        user_id: user.id,
-        content: dataToSave,
-        // Removed "RX json" as we store it locally only now
-    };
-
-    const { data: existingRows, error: fetchError } = await supabase
+    // استخدام upsert بدلاً من select ثم insert/update
+    // هذا يضمن إنشاء صف جديد إذا لم يكن موجوداً بناءً على user_id
+    const { error } = await supabase
         .from('user_data')
-        .select('id')
-        .eq('user_id', user.id)
-        .order('id', { ascending: false })
-        .limit(1);
+        .upsert({
+            user_id: user.id,
+            content: dataToSave,
+        }, {
+            onConflict: 'user_id' // العمود الذي نعتمد عليه لتحديد التكرار
+        });
 
-    if (fetchError) {
-        console.error('Error checking for existing record:', fetchError.message);
-        throw new Error(fetchError.message || 'Failed to check existing data');
-    }
-
-    let saveError;
-    if (existingRows && existingRows.length > 0) {
-        const { error: updateError } = await supabase
-            .from('user_data')
-            .update(payload)
-            .eq('id', existingRows[0].id);
-        saveError = updateError;
-    } else {
-        const { error: insertError } = await supabase
-            .from('user_data')
-            .insert(payload);
-        saveError = insertError;
-    }
-
-    if (saveError) {
-        const errorInfo = `Code: ${saveError.code}, Message: ${saveError.message}, Details: ${saveError.details}`;
-        console.error('Error saving data to Supabase:', errorInfo);
-        throw new Error(saveError.message || 'Database sync failed');
+    if (error) {
+        console.error('Error saving data to Supabase:', error.message);
+        throw new Error(error.message || 'Database sync failed');
     }
   }
 };

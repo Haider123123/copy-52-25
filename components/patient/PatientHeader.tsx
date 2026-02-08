@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ArrowLeft, Edit2, Trash2, Phone, Copy, MessageCircle, Camera, BrainCircuit } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, Phone, Copy, MessageCircle, Camera, BrainCircuit, RefreshCw, AlertCircle, Cloud } from 'lucide-react';
 import { STATUS_COLORS, CATEGORIES } from '../../constants';
 import { openWhatsApp } from '../../utils';
 import { Patient, Language } from '../../types';
@@ -16,33 +16,52 @@ interface PatientHeaderProps {
   handleDeletePatient: (id: string) => void;
   profilePicInputRef: React.RefObject<HTMLInputElement | null>;
   handleProfilePicUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  isProcessingProfilePic?: boolean;
   onOpenAI?: () => void; // New prop for AI assistant
 }
 
 export const PatientHeader: React.FC<PatientHeaderProps> = ({
   activePatient, t, isRTL, currentLang, setSelectedPatientId, setShowEditPatientModal,
-  openConfirm, handleDeletePatient, profilePicInputRef, handleProfilePicUpload, onOpenAI
+  openConfirm, handleDeletePatient, profilePicInputRef, handleProfilePicUpload, isProcessingProfilePic, onOpenAI
 }) => {
   const statusColorData = STATUS_COLORS[activePatient.status] || STATUS_COLORS.active;
+  
+  // تحقق إذا كانت الصورة محلية وغير مزامنة
+  const isProfilePicUnsynced = activePatient.profilePicture && !activePatient.profilePictureDriveId && activePatient.profilePicture.startsWith('data:');
+
   return (
     <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
         <button onClick={() => setSelectedPatientId(null)} className="md:hidden mb-2 flex items-center gap-2 text-gray-500">
             <ArrowLeft size={20} className="rtl:rotate-180" /> {t.back}
         </button>
 
-        <div 
-            onClick={() => profilePicInputRef.current?.click()}
-            className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl relative shadow-inner overflow-hidden group shrink-0 mx-auto md:mx-0 border-4 border-white dark:border-gray-700 cursor-pointer transition-all ${statusColorData.split(' ')[0]}`}
-        >
-            {activePatient.profilePicture ? (
-                <img src={activePatient.profilePicture} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
-            ) : (
-                <span>{activePatient.gender === 'male' ? '👨' : '👩'}</span>
-            )}
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                <Camera size={24} />
+        <div className="relative mx-auto md:mx-0 group">
+            <div 
+                onClick={() => !isProcessingProfilePic && profilePicInputRef.current?.click()}
+                className={`w-24 h-24 rounded-full flex items-center justify-center text-4xl relative shadow-inner overflow-hidden shrink-0 border-4 border-white dark:border-gray-700 cursor-pointer transition-all ${statusColorData.split(' ')[0]} ${isProcessingProfilePic ? 'opacity-70' : ''}`}
+            >
+                {isProcessingProfilePic ? (
+                    <div className="bg-gray-100 dark:bg-gray-800 w-full h-full flex items-center justify-center">
+                        <RefreshCw className="animate-spin text-primary-500" size={32} />
+                    </div>
+                ) : activePatient.profilePicture ? (
+                    <img src={activePatient.profilePicture} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                ) : (
+                    <span>{activePatient.gender === 'male' ? '👨' : '👩'}</span>
+                )}
+                
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                    <Camera size={24} />
+                </div>
+                <input type="file" ref={profilePicInputRef} className="hidden" accept="image/*" onChange={handleProfilePicUpload} disabled={isProcessingProfilePic} />
             </div>
-            <input type="file" ref={profilePicInputRef} className="hidden" accept="image/*" onChange={handleProfilePicUpload} />
+
+            {/* مؤشر عدم المزامنة */}
+            {isProfilePicUnsynced && (
+                <div className="absolute -top-1 -right-1 bg-orange-500 text-white p-1.5 rounded-full shadow-lg border-2 border-white dark:border-gray-800 z-10 animate-bounce" title={t.unsyncedAlert}>
+                    <Cloud size={14} />
+                </div>
+            )}
         </div>
 
         <div className="flex-1 text-center md:text-start w-full">

@@ -61,9 +61,11 @@ interface PatientDetailsProps {
   handleSaveExamination: (patientId: string, exam: Examination, isEdit: boolean) => Promise<boolean>;
   handleDeleteExamination: (patientId: string, id: string) => Promise<void>;
   handleDeletePayment: (patientId: string, paymentId: string) => Promise<void>;
+  handleProfilePicUpload: (patientId: string, file: File) => Promise<void>;
   isProcessingExam: boolean;
   isProcessingFinance: boolean;
   isProcessingAppt: boolean;
+  isProcessingProfilePic: boolean;
   opError: string | null;
   setOpError: (err: string | null) => void;
 }
@@ -76,7 +78,7 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
   setPrintingPayment, setPrintingAppointment, setPrintingExamination, handleRxFileUpload, handleRemoveRxBg, setShowEditPatientModal,
   setShowAppointmentModal, setSelectedAppointment, setAppointmentMode, setShowPaymentModal,
   setPaymentType, setSelectedPayment, setShowRxModal, setShowAddMasterDrugModal, openConfirm, setPrintingDocument,
-  isSecretary, handleSaveExamination, handleDeleteExamination, handleDeletePayment, isProcessingExam, isProcessingFinance, isProcessingAppt, opError, setOpError
+  isSecretary, handleSaveExamination, handleDeleteExamination, handleDeletePayment, handleProfilePicUpload, isProcessingExam, isProcessingFinance, isProcessingAppt, isProcessingProfilePic, opError, setOpError
 }) => {
   const [rctInput, setRctInput] = useState({ tooth: '', canal: '', length: '' });
   const [showDocSettingsModal, setShowDocSettingsModal] = useState(false);
@@ -107,7 +109,12 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
       if (success) setShowExaminationModal(false);
   };
 
-  const handleProfilePicUpload = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) { const reader = new FileReader(); reader.onloadend = () => { updatePatient(activePatient.id, { profilePicture: reader.result as string, profilePictureDriveId: undefined }); }; reader.readAsDataURL(file); } };
+  const onProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          handleProfilePicUpload(activePatient.id, file);
+      }
+  };
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in w-full pb-10 relative">
@@ -144,7 +151,8 @@ export const PatientDetails: React.FC<PatientDetailsProps> = ({
           openConfirm={openConfirm} 
           handleDeletePatient={handleDeletePatient} 
           profilePicInputRef={profilePicInputRef} 
-          handleProfilePicUpload={handleProfilePicUpload} 
+          handleProfilePicUpload={onProfilePicChange}
+          isProcessingProfilePic={isProcessingProfilePic}
           onOpenAI={() => !isSecretary && setShowAIAssistant(true)}
         />
 

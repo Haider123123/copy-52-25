@@ -58,6 +58,7 @@ export default function App() {
   const [isProcessingExam, setIsProcessingExam] = useState(false);
   const [isProcessingRx, setIsProcessingRx] = useState(false);
   const [isProcessingDelete, setIsProcessingDelete] = useState(false);
+  const [isProcessingProfilePic, setIsProcessingProfilePic] = useState(false);
   const [opError, setOpError] = useState<string | null>(null);
 
   const [showNewPatientModal, setShowNewPatientModal] = useState(false);
@@ -180,6 +181,33 @@ export default function App() {
           }
       } catch (e) {
           alert(deviceLang === 'ar' ? "فشل ربط حساب Google Drive" : "Failed to link Google Drive account");
+      }
+  };
+
+  const handleProfilePicUploadAsync = async (patientId: string, file: File) => {
+      setIsProcessingProfilePic(true);
+      try {
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+              const base64String = reader.result as string;
+              
+              // حفظ محلي فقط
+              await updatePatient(patientId, {
+                  profilePicture: base64String,
+                  profilePictureDriveId: undefined, // نلغي الـ ID لنعرف أنها غير مزامنة
+                  updatedAt: Date.now()
+              });
+              
+              // إظهار التنبيه المطلوب
+              alert(deviceLang === 'ar' 
+                ? "تم حفظ صورة البروفايل محلياً. يرجى الذهاب للإعدادات ومزامنة الملفات لرفعها على حساب Google Drive ومشاركتها مع باقي الأجهزة." 
+                : "Profile picture saved locally. Please go to Settings and sync files to upload it to Google Drive and share with other devices.");
+          };
+          reader.readAsDataURL(file);
+      } catch (err: any) {
+          alert(err.message || "Failed to save profile picture");
+      } finally {
+          setIsProcessingProfilePic(false);
       }
   };
 
@@ -894,9 +922,11 @@ export default function App() {
                 handleSaveExamination={handleSaveExaminationAsync} 
                 handleDeleteExamination={handleDeleteExaminationAsync} 
                 handleDeletePayment={handleDeletePaymentAsync}
+                handleProfilePicUpload={handleProfilePicUploadAsync}
                 isProcessingExam={isProcessingExam} 
                 isProcessingFinance={isProcessingFinance} 
                 isProcessingAppt={isProcessingAppt} 
+                isProcessingProfilePic={isProcessingProfilePic}
                 opError={opError} 
                 setOpError={setOpError} 
               />}

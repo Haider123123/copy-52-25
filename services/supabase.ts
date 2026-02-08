@@ -65,12 +65,23 @@ export const supabaseService = {
     }
 
     if (!data || data.length === 0) {
-      return null; // نعيد null لنعرف أن الحساب جديد تماماً
+      return null;
     }
 
     const row = data[0];
-    const content = row.content || {};
-    const cloudTimestamp = content.lastUpdated || 0;
+    
+    // معالجة دفاعية: jsonb قد يعود أحياناً ككائن أو كنص حسب إعدادات التوصيل
+    let content = row.content;
+    if (typeof content === 'string') {
+      try {
+        content = JSON.parse(content);
+      } catch (e) {
+        console.error("Failed to parse content string from jsonb column", e);
+        content = {};
+      }
+    }
+
+    const cloudTimestamp = content?.lastUpdated || 0;
 
     return { 
         ...INITIAL_DATA, 
@@ -83,39 +94,57 @@ export const supabaseService = {
     const user = await supabaseService.getUser();
     if (!user) return;
 
-    // نسخة عميقة لتعديلها قبل الحفظ
-    const dataToSave = JSON.parse(JSON.stringify(clinicData));
+    // تنظيف البيانات قبل الحفظ لضمان سلامة هيكل JSON
+    const cleanData = JSON.parse(JSON.stringify(clinicData));
     
-    // إزالة الصور الخلفية (تخزن محلياً فقط حسب الطلب السابق)
-    if (dataToSave.settings) {
-        dataToSave.settings.rxBackgroundImage = "";
-        dataToSave.settings.consentBackgroundImage = "";
-        dataToSave.settings.instructionsBackgroundImage = "";
+    // إزالة الصور الكبيرة التي لا نحتاج حفظها في قاعدة البيانات (حفظ الروابط فقط)
+    if (cleanData.settings) {
+        cleanData.settings.rxBackgroundImage = cleanData.settings.rxBackgroundImage?.startsWith('data:') ? "" : cleanData.settings.rxBackgroundImage;
+        cleanData.settings.consentBackgroundImage = cleanData.settings.consentBackgroundImage?.startsWith('data:') ? "" : cleanData.settings.consentBackgroundImage;
+        cleanData.settings.instructionsBackgroundImage = cleanData.settings.instructionsBackgroundImage?.startsWith('data:') ? "" : cleanData.settings.instructionsBackgroundImage;
     }
     
-    if (dataToSave.doctors) {
-        dataToSave.doctors = dataToSave.doctors.map((doc: any) => ({
+    if (cleanData.doctors) {
+        cleanData.doctors = cleanData.doctors.map((doc: any) => ({
             ...doc,
-            rxBackgroundImage: ""
+            rxBackgroundImage: doc.rxBackgroundImage?.startsWith('data:') ? "" : doc.rxBackgroundImage
         }));
     }
 
-    dataToSave.lastUpdated = Date.now();
+    cleanData.lastUpdated = Date.now();
 
-    // استخدام upsert بدلاً من select ثم insert/update
-    // هذا يضمن إنشاء صف جديد إذا لم يكن موجوداً بناءً على user_id
-    const { error } = await supabase
+    try {
+      // البحث عن السجل الحالي
+      const { data: existing, error: fetchError } = await supabase
         .from('user_data')
-        .upsert({
-            user_id: user.id,
-            content: dataToSave,
-        }, {
-            onConflict: 'user_id' // العمود الذي نعتمد عليه لتحديد التكرار
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-    if (error) {
-        console.error('Error saving data to Supabase:', error.message);
-        throw new Error(error.message || 'Database sync failed');
+      if (fetchError) throw fetchError;
+
+      if (existing) {
+        // تحديث السجل باستخدام كائن JSON مباشر (يتوافق تماماً مع jsonb)
+        const { error: updateError } = await supabase
+          .from('user_data')
+          .update({ content: cleanData })
+          .eq('user_id', user.id);
+        
+        if (updateError) throw updateError;
+      } else {
+        // إنشاء سجل جديد
+        const { error: insertError } = await supabase
+          .from('user_data')
+          .insert({ 
+            user_id: user.id, 
+            content: cleanData 
+          });
+        
+        if (insertError) throw insertError;
+      }
+    } catch (error: any) {
+      console.error('Database Sync Error:', error.message);
+      throw new Error(error.message || 'فشلت عملية المزامنة مع قاعدة البيانات');
     }
   }
 };

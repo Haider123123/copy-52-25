@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { ClinicData } from '../types';
 import { INITIAL_DATA } from '../initialData';
 
-const SUPABASE_URL = 'https://ssiyxruwbmmtbbewkxvn.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNzaXl4cnV3Ym1tdGJiZXdreHZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1NzgzMDksImV4cCI6MjA4NjE1NDMwOX0.Y-3AxhFlHi5rePMhQow-6b70V4Rkd59wGXBieHHdWzk';
+const SUPABASE_URL = 'https://ybbaaldbcdjihmkfljir.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliYmFhbGRiY2RqaWhta2ZsamlyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk4MDUxMzksImV4cCI6MjA4NTM4MTEzOX0.6lhD9pqhOGuGSJwavqHjPqBetUYUWNwJWSvbYke4MIg';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
